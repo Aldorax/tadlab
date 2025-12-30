@@ -141,7 +141,7 @@ Our work bridges research, policy, and practice by grounding inquiry in real-wor
               </h3>
               <div className="space-y-3 mb-8">
                 <p className="text-white text-lg">+971-5070-8100</p>
-                <p className="text-white text-lg">hello@terahaus.com</p>
+                <p className="text-white text-lg">info@africandisruptionslab.org</p>
               </div>
               <div>
                 <h4 className="text-[#767676] text-xl font-semibold mb-4">
