@@ -8,7 +8,7 @@ const tabs = ["All", "Ongoing Research Projects", "Publications", "Pilot Actions
 const publications = [
   {
     id: 1,
-    image: "/images/zebra.jpg",
+    image: "/images/about/1.jpg",
     tags: ["Tech", "Political Change"],
     title: "Governance Under Pressure: Institutional Responses to Political Disruption",
     description:
@@ -16,7 +16,7 @@ const publications = [
   },
   {
     id: 2,
-    image: "/images/zebra.jpg",
+    image: "/images/about/2.jpg",
     tags: ["Tech", "Political Change"],
     title: "Irinkérindó: A Journal of African Migration",
     description:
@@ -24,7 +24,7 @@ const publications = [
   },
   {
     id: 3,
-    image: "/images/zebra.jpg",
+    image: "/images/about/3.jpg",
     tags: ["Tech", "Political Change"],
     title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
     description:
@@ -32,7 +32,7 @@ const publications = [
   },
   {
     id: 4,
-    image: "/images/zebra.jpg",
+    image: "/images/about/4.jpg",
     tags: ["Tech", "Political Change"],
     title: "Governance Under Pressure: Institutional Responses to Political Disruption",
     description:
@@ -40,7 +40,7 @@ const publications = [
   },
   {
     id: 5,
-    image: "/images/zebra.jpg",
+    image: "/images/about/5.jpg",
     tags: ["Tech", "Political Change"],
     title: "Irinkérindó: A Journal of African Migration",
     description:
@@ -48,7 +48,7 @@ const publications = [
   },
   {
     id: 6,
-    image: "/images/zebra.jpg",
+    image: "/images/about/6.jpg",
     tags: ["Tech", "Political Change"],
     title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
     description:
@@ -56,7 +56,7 @@ const publications = [
   },
   {
     id: 7,
-    image: "/aerial-campus-buildings.jpg",
+    image: "/images/about/7.jpg",
     tags: ["Tech", "Political Change"],
     title: "Governance Under Pressure: Institutional Responses to Political Disruption",
     description:
@@ -64,7 +64,7 @@ const publications = [
   },
   {
     id: 8,
-    image: "/african-community-group.jpg",
+    image: "/images/about/8.jpg",
     tags: ["Tech", "Political Change"],
     title: "Irinkérindó: A Journal of African Migration",
     description:
@@ -72,7 +72,7 @@ const publications = [
   },
   {
     id: 9,
-    image: "/library-student-studying.jpg",
+    image: "/images/about/9.jpg",
     tags: ["Tech", "Political Change"],
     title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
     description:

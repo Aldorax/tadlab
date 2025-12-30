@@ -85,17 +85,17 @@ Our work bridges research, policy, and practice by grounding inquiry in real-wor
         <div className="container mx-auto px-8 grid grid-cols-3 gap-4">
           
             <img
-                src="/images/zebra.jpg"
+                src="/images/1.jpg"
                 alt="Logo"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             <img
-                src="/images/zebra.jpg"
+                src="/images/2.jpg"
                 alt="Logo"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
             <img
-                src="/images/zebra.jpg"
+                src="/images/3.jpg"
                 alt="Logo"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
@@ -114,7 +114,7 @@ Our work bridges research, policy, and practice by grounding inquiry in real-wor
             <div className="border p-4 border-[#333333]">
             <div className="flex gap-4 items-center">
               <Image
-                src="/images/about.jpg"
+                src="/images/logo.png"
                 alt="Logo"
                 width={100}
                 height={100}

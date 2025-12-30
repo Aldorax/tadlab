@@ -76,16 +76,6 @@ Our research combines analytical rigor with participatory methods and real-world
               </p>
             </div>
           </div>
-
-          <div className="overflow-hidden">
-            <Image
-              src="/images/zebra.jpg"
-              alt="African landscape with acacia tree"
-              width={1400}
-              height={600}
-              className="w-full h-[600px] object-cover"
-            />
-          </div>
         </div>
       </section>
 

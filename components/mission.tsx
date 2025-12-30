@@ -18,7 +18,7 @@ export default function MissionVisionSection() {
 
         {/* Full width image */}
         <div className="w-full aspect-[21/9] overflow-hidden mb-16">
-          <img src="/images/zebra.jpg" alt="Community gathering" className="w-full h-full object-cover" />
+          <img src="/images/mission.jpg" alt="Community gathering" className="w-full h-full object-cover" />
         </div>
 
         {/* Mission points and Vision */}

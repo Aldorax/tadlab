@@ -50,11 +50,14 @@ export default function TeamSection() {
         {teamMembers.map((member, index) => (
           <div key={index} className="bg-white border border-[#e8e8e8] overflow-hidden">
             <div className="aspect-[4/5] overflow-hidden">
-              <img src={member.image || "/images/zebra.jpg"} alt={member.name} className="w-full h-full object-cover" />
+              {/* <img src={member.image || "/images/zebra.jpg"} alt={member.name} className="w-full h-full object-cover" /> */}
+              COMING SOON
             </div>
             <div className="p-6">
-              <h3 className="text-2xl font-bold text-[#1a1a1a] mb-1">{member.name}</h3>
-              <p className="text-[#767676] text-base">{member.role}</p>
+              {/* <h3 className="text-2xl font-bold text-[#1a1a1a] mb-1">{member.name}</h3> */}
+              <h3 className="text-2xl font-bold text-[#1a1a1a] mb-1">COMING SOON</h3>
+              {/* <p className="text-[#767676] text-base">{member.role}</p> */}
+              <p className="text-[#767676] text-base">COMING SOON</p>
             </div>
           </div>
         ))}
