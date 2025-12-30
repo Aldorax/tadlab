@@ -155,7 +155,7 @@ Our research combines analytical rigor with participatory methods and real-world
                   href="#about"
                   className="block text-white hover:text-[#d1d1d1] transition-colors"
                 >
-                  ABout US
+                  About us
                 </Link>
                 <Link
                   href="#projects"
@@ -167,7 +167,7 @@ Our research combines analytical rigor with participatory methods and real-world
                   href="#contact"
                   className="block text-white hover:text-[#d1d1d1] transition-colors"
                 >
-                  Contact US
+                  Contact us
                 </Link>
               </nav>
             </div>

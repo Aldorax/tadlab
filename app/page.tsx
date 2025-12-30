@@ -28,7 +28,7 @@ export default function LandingPage() {
     }
   };
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen font-bricolage">
       {/* Hero Section */}
       <section
         className="relative min-h-screen bg-cover bg-center"
@@ -401,7 +401,7 @@ export default function LandingPage() {
 
           <div className=" overflow-hidden">
             <Image
-              src="/african-fishermen-on-traditional-boat-in-ocean.jpg"
+              src="/images/homelast.jpg"
               alt="African fishermen working together"
               width={1400}
               height={600}
@@ -475,7 +475,7 @@ export default function LandingPage() {
                   href="#about"
                   className="block text-white hover:text-[#d1d1d1] transition-colors"
                 >
-                  ABout US
+                  About us
                 </Link>
                 <Link
                   href="#projects"
@@ -487,7 +487,7 @@ export default function LandingPage() {
                   href="#contact"
                   className="block text-white hover:text-[#d1d1d1] transition-colors"
                 >
-                  Contact US
+                  Contact us
                 </Link>
               </nav>
             </div>
