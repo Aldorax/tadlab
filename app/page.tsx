@@ -47,7 +47,7 @@ export default function LandingPage() {
         {/* Hero Content */}
         <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-32 flex items-center h-[90vh] font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
-            <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1]">
+            <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1]">
               Understanding Disruption.
               <br />
               Shaping Africa&apos;s Future.
@@ -68,14 +68,14 @@ export default function LandingPage() {
       {/* About Us Section */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
-          <div className="flex justify-between">
+          <div className="flex flex-col md:flex-row justify-between">
             <div className="flex items-start gap-4 mb-16">
               <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
               <h2 className="text-4xl font-bold text-[#1a1a1a]">About Us</h2>
             </div>
 
             <div className="mb-16">
-              <h3 className="text-5xl font-bold text-[#1a1a1a] text-right mb-8">
+              <h3 className="text-4xl md:text-5xl font-bold text-[#1a1a1a] text-right mb-8">
                 Understanding Change,
                 <br />
                 Designing Solutions
@@ -118,7 +118,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mb-20">
-            <h3 className="text-5xl font-bold text-white text-right mb-8">
+            <h3 className="text-4xl md:text-5xl font-bold text-white text-right mb-8">
               A Solutions-Driven
               <br />
               Research Approach
@@ -198,13 +198,13 @@ export default function LandingPage() {
       {/* I want a horizontal slider with more than 3 projects */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
-          <div className="flex items-start  justify-between">
+          <div className="flex items-start flex-col md:flex-row justify-between">
             <div className="flex items-center gap-4">
               <div className="w-3 h-3 rounded-full bg-[#000] mt-2" />
-              <h2 className="text-4xl font-bold text-[#1a1a1a]">Projects</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#1a1a1a]">Projects</h2>
             </div>
           <div className="mb-16 flex flex-col gap-2">
-            <h3 className="text-5xl font-bold text-[#1a1a1a] text-right mb-4">
+            <h3 className="mt-10 text-3xl md:text-5xl font-bold text-[#1a1a1a] text-right mb-4">
               Featured Research and Initiatives
             </h3>
             <p className="text-[#767676] text-lg text-right max-w-2xl ml-auto leading-relaxed">
@@ -378,7 +378,7 @@ export default function LandingPage() {
       {/* Why This Work Matters Section */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
-          <div className="flex justify-between gap-4 mb-16">
+          <div className="flex flex-col md:flex-row justify-between gap-4 mb-16">
           <div className="flex gap-4 justify-center">
             <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
             <h2 className="text-4xl font-bold text-[#1a1a1a]">

@@ -14,7 +14,7 @@ export default function NavBar() {
               className="brightness-0 invert"
             />
             <div>
-              <h1 className="text-white text-xl font-bold leading-tight">
+              <h1 className="text-white text-xs md:text-xl font-bold leading-tight">
                The Africa Disruptions Lab 
               </h1>
               <p className="text-white/80 text-sm">(TADLab)</p>
@@ -50,7 +50,7 @@ export default function NavBar() {
           </div>
 
           {/* Subscribe Button */}
-          <button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-full px-8 py-3 text-sm font-medium uppercase tracking-wide transition-all">
+          <button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-full px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-medium uppercase tracking-wide transition-all">
             SUBSCRIBE
           </button>
         </nav>
