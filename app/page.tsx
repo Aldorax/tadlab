@@ -260,7 +260,7 @@ export default function LandingPage() {
               }}
             >
               {/* Project 1 */}
-              <div className="min-w-[500px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
+              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
                 <div className="relative h-64">
                   <Image
                     src="/africa-map-political-disruption-concept.jpg"
@@ -291,7 +291,7 @@ export default function LandingPage() {
               </div>
 
               {/* Project 2 */}
-              <div className="min-w-[500px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
+              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
                 <div className="relative h-64">
                   <Image
                     src="/african-woman-scholar-with-books-library.jpg"
@@ -321,7 +321,7 @@ export default function LandingPage() {
               </div>
 
               {/* Project 3 */}
-              <div className="min-w-[500px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
+              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
                 <div className="relative h-64">
                   <Image
                     src="/african-people-with-water-containers-migration.jpg"
@@ -352,7 +352,7 @@ export default function LandingPage() {
               </div>
 
               {/* Project 4 */}
-              <div className="min-w-[500px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
+              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
                 <div className="relative h-64">
                   <Image
                     src="/african-people-with-water-containers-migration.jpg"
