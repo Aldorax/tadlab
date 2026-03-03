@@ -41,16 +41,15 @@ export default function ContactSection() {
             <div className="space-y-8">
               <div>
                 <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">General Enquiries</h3>
-                <a href="mailto:info@africandsl.com" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
-                  info@africandsl.com
+                <a href="mailto:info@africandisruptionslab.org" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
+                  info@africandisruptionslab.org
                 </a>
               </div>
 
               <div>
                 <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">Email</h3>
                 <a href="mailto:africandsl@gmail.com" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
-                  africandsl@gmail.com
-                </a>
+                  info@africandisruptionslab.org                </a>
               </div>
 
               <div>
