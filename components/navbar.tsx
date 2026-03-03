@@ -36,6 +36,12 @@ export default function NavBar() {
               PROJECTS
             </Link>
             <Link
+              href="/events"
+              className="text-white hover:bg-white/10 transition-all px-6 py-2 rounded-full text-sm font-medium uppercase tracking-wide"
+            >
+              EVENTS
+            </Link>
+            <Link
               href="/about-us"
               className="text-white hover:bg-white/10 transition-all px-6 py-2 rounded-full text-sm font-medium uppercase tracking-wide"
             >
