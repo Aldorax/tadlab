@@ -1,87 +1,52 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 
 const tabs = ["All", "Ongoing Research Projects", "Publications", "Pilot Actions", "Social Experiments", "Journals"]
 
-const publications = [
-  {
-    id: 1,
-    image: "/images/about/1.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
-    description:
-      "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
-  },
-  {
-    id: 2,
-    image: "/images/about/2.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Irinkérindó: A Journal of African Migration",
-    description:
-      "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
-  },
-  {
-    id: 3,
-    image: "/images/about/3.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
-    description:
-      "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
-  },
-  {
-    id: 4,
-    image: "/images/about/4.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
-    description:
-      "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
-  },
-  {
-    id: 5,
-    image: "/images/about/5.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Irinkérindó: A Journal of African Migration",
-    description:
-      "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
-  },
-  {
-    id: 6,
-    image: "/images/about/6.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
-    description:
-      "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
-  },
-  {
-    id: 7,
-    image: "/images/about/7.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
-    description:
-      "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
-  },
-  {
-    id: 8,
-    image: "/images/about/8.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Irinkérindó: A Journal of African Migration",
-    description:
-      "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
-  },
-  {
-    id: 9,
-    image: "/images/about/9.jpg",
-    tags: ["Tech", "Political Change"],
-    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
-    description:
-      "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
-  },
-]
+export interface ProjectItem {
+  id: string;
+  image: string;
+  tags: string[];
+  title: string;
+  description: string;
+}
 
-export default function PublicationsGrid() {
-  const [activeTab, setActiveTab] = useState("All")
+export default function PublicationsGrid({ projects: initialProjects }: { projects: ProjectItem[] }) {
+  const [activeTab, setActiveTab] = useState("All");
+  const [projects, setProjects] = useState(initialProjects);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9; // 3x3 grid
+
+  useEffect(() => {
+    setProjects(initialProjects);
+    setCurrentPage(1);
+  }, [initialProjects]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data?.type === 'PREVIEW_PROJECT') {
+        setProjects(prev => {
+          const newPreview = { id: 'preview-proj', ...data.payload };
+          const others = initialProjects;
+          return [newPreview, ...others.filter(p => p.id !== 'preview-proj')];
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [initialProjects]);
+
+  const totalPages = Math.max(1, Math.ceil(projects.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedProjects = projects.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 300, behavior: "smooth" });
+  };
 
   return (
     <div className="container mx-auto py-12">
@@ -90,10 +55,9 @@ export default function PublicationsGrid() {
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2.5 rounded-full text-sm font-medium transition-colors ${
-              activeTab === tab ? "bg-[#000000] text-white" : "bg-[#f5f5f5] text-[#1a1a1a] hover:bg-[#e5e5e5]"
-            }`}
+            onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
+            className={`px-6 py-2.5 rounded-full text-sm font-medium transition-colors ${activeTab === tab ? "bg-[#000000] text-white" : "bg-[#f5f5f5] text-[#1a1a1a] hover:bg-[#e5e5e5]"
+              }`}
           >
             {tab}
           </button>
@@ -102,7 +66,7 @@ export default function PublicationsGrid() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-        {publications.map((item) => (
+        {paginatedProjects.map((item) => (
           <div key={item.id} className="group cursor-pointer">
             {/* Image */}
             <div className="aspect-[4/3] mb-4 overflow-hidden rounded-lg">
@@ -114,7 +78,7 @@ export default function PublicationsGrid() {
             </div>
 
             {/* Tags */}
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 flex-wrap">
               {item.tags.map((tag) => (
                 <span key={tag} className="bg-[#000000] text-white px-3 py-1 rounded-full text-xs font-medium">
                   {tag}
@@ -126,26 +90,46 @@ export default function PublicationsGrid() {
             <h3 className="text-lg font-semibold text-[#000000] mb-2 leading-tight">{item.title}</h3>
 
             {/* Description */}
-            <p className="text-sm text-[#484848] leading-relaxed">{item.description}</p>
+            <p className="text-sm text-[#484848] leading-relaxed line-clamp-3">{item.description}</p>
           </div>
         ))}
       </div>
 
       {/* Pagination */}
-      <div className="flex justify-center gap-4">
-        <Button
-          variant="outline"
-          className="px-6 py-2 border-[#e5e5e5] text-[#1a1a1a] hover:bg-[#f5f5f5] bg-transparent"
-        >
-          Prev
-        </Button>
-        <Button
-          variant="outline"
-          className="px-6 py-2 border-[#e5e5e5] text-[#1a1a1a] hover:bg-[#f5f5f5] bg-transparent"
-        >
-          Next
-        </Button>
-      </div>
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-5 py-2 border-[#e5e5e5] text-[#1a1a1a] hover:bg-[#f5f5f5] bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Prev
+          </Button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => goToPage(page)}
+              className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${currentPage === page
+                  ? "bg-black text-white"
+                  : "bg-[#f5f5f5] text-[#1a1a1a] hover:bg-[#e5e5e5]"
+                }`}
+            >
+              {page}
+            </button>
+          ))}
+
+          <Button
+            variant="outline"
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-5 py-2 border-[#e5e5e5] text-[#1a1a1a] hover:bg-[#f5f5f5] bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

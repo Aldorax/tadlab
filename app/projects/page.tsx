@@ -1,12 +1,80 @@
-"use client";
-
 import ConstructionBanner from "@/components/construction-banner";
 import Footer from "@/components/footer";
 import NavBar from "@/components/navbar";
 import PublicationsGrid from "@/components/publications";
 import { Button } from "@/components/ui/button";
+import { getProjects } from "@/app/actions/projects";
 
-export default function ProjectsPage() {
+const defaultProjects = [
+  {
+    id: "1",
+    image: "/images/about/1.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
+    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
+  },
+  {
+    id: "2",
+    image: "/images/about/2.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Irinkérindó: A Journal of African Migration",
+    description: "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
+  },
+  {
+    id: "3",
+    image: "/images/about/3.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
+    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
+  },
+  {
+    id: "4",
+    image: "/images/about/4.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
+    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
+  },
+  {
+    id: "5",
+    image: "/images/about/5.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Irinkérindó: A Journal of African Migration",
+    description: "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
+  },
+  {
+    id: "6",
+    image: "/images/about/6.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
+    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
+  },
+  {
+    id: "7",
+    image: "/images/about/7.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
+    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms Focusing...",
+  },
+  {
+    id: "8",
+    image: "/images/about/8.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Irinkérindó: A Journal of African Migration",
+    description: "Irinkérindó is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
+  },
+  {
+    id: "9",
+    image: "/images/about/9.jpg",
+    tags: ["Tech", "Political Change"],
+    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
+    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
+  }
+];
+
+export default async function ProjectsPage() {
+  const dbProjects = await getProjects();
+  const projects = dbProjects.length > 0 ? dbProjects : defaultProjects;
+
   return (
     <div className="min-h-screen">
       {/* Construction Banner */}
@@ -62,7 +130,7 @@ export default function ProjectsPage() {
       </section>
 
       {/* Publications Grid */}
-      <PublicationsGrid />
+      <PublicationsGrid projects={projects} />
 
       {/* Footer */}
       <Footer />

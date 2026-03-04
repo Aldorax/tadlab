@@ -7,10 +7,100 @@ import { Button } from "@/components/ui/button";
 import { Search, Users, Copy, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
+import { getPageContent } from "@/app/actions/content";
+import { getProjects } from "@/app/actions/projects";
+
+const defaultProjects = [
+  {
+    id: "1",
+    image: "/africa-map-political-disruption-concept.jpg",
+    tags: ["Governance", "Political Change"],
+    title: "Governance Under Pressure: Institutional Responses to Political Disruption",
+    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms focusing..."
+  },
+  {
+    id: "2",
+    image: "/african-woman-scholar-with-books-library.jpg",
+    tags: ["Migration", "Research"],
+    title: "Ìrìnkèrindò: A Journal of African Migration",
+    description: "Ìrìnkèrindò is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement."
+  },
+  {
+    id: "3",
+    image: "/african-people-with-water-containers-migration.jpg",
+    tags: ["Policy", "Migration"],
+    title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
+    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna..."
+  },
+  {
+    id: "4",
+    image: "/african-people-with-water-containers-migration.jpg",
+    tags: ["Technology", "Innovation"],
+    title: "Digital Transformation and Social Change in African Cities",
+    description: "Examining how rapid technological adoption is reshaping urban governance, economic opportunities, and social structures across major African cities..."
+  }
+];
 
 export default function LandingPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [heroContent, setHeroContent] = useState({
+    title: "Understanding Disruption.\nShaping Africa's Future.",
+    sub: "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding social, political, economic, and technological disruptions across Africa — and translating evidence into practical, policy-relevant solutions.",
+    image: "/images/hero2.jpg"
+  });
+
+  const [projects, setProjects] = useState<any[]>(defaultProjects);
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await getPageContent("homepage");
+      if (data) {
+        setHeroContent({
+          title: data.heroTitle || "Understanding Disruption.\nShaping Africa's Future.",
+          sub: data.heroSub || "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding social, political, economic, and technological disruptions across Africa — and translating evidence into practical, policy-relevant solutions.",
+          image: data.heroImage || "/images/hero2.jpg"
+        });
+      }
+
+      const projectsData = await getProjects();
+      if (projectsData && projectsData.length > 0) {
+        // If they have less than 4 projects in DB, pad the rest with defaults so the slider isn't empty
+        if (projectsData.length < 4) {
+          const needed = 4 - projectsData.length;
+          setProjects([...projectsData, ...defaultProjects.slice(0, needed)]);
+        } else {
+          setProjects(projectsData);
+        }
+      }
+    }
+    fetchData();
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data?.type === 'PREVIEW_CONTENT' && data?.pageId === 'homepage') {
+        setHeroContent((prev) => ({
+          title: data.payload.heroTitle || prev.title,
+          sub: data.payload.heroSub || prev.sub,
+          image: data.payload.heroImage || prev.image,
+        }));
+      }
+      if (data?.type === 'PREVIEW_PROJECT') {
+        setProjects(prev => {
+          const newPreview = { id: 'preview-proj', ...data.payload };
+          const others = prev.filter(p => !p.id.toString().startsWith('preview-'));
+          const combined = [newPreview, ...others];
+          if (combined.length < 4) {
+            const needed = 4 - combined.length;
+            return [...combined, ...defaultProjects.slice(0, needed)];
+          }
+          return combined;
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
@@ -39,7 +129,7 @@ export default function LandingPage() {
       <section
         className="relative min-h-screen bg-cover bg-center"
         style={{
-          backgroundImage: "url('/images/hero2.jpg')",
+          backgroundImage: `url('${heroContent.image}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -53,16 +143,11 @@ export default function LandingPage() {
         {/* Hero Content */}
         <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-32 flex items-center h-[90vh] font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
-            <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1]">
-              Understanding Disruption.
-              <br />
-              Shaping Africa&apos;s Future.
+            <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1] whitespace-pre-line">
+              {heroContent.title}
             </h2>
-            <p className="text-base md:text-xl text-white/90 mb-8 font-semibold leading-relaxed max-w-4xl">
-              The African Futures and Disruption Studies Lab is a collaborative
-              research platform dedicated to understanding social, political,
-              economic, and technological disruptions across Africa — and
-              translating evidence into practical, policy-relevant solutions.
+            <p className="text-base md:text-xl text-white/90 mb-8 font-semibold leading-relaxed max-w-4xl whitespace-pre-line">
+              {heroContent.sub}
             </p>
             <Link href="/research">
               <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-4 md:py-6 text-base font-medium transition-all hover:scale-105">
@@ -259,127 +344,33 @@ export default function LandingPage() {
                 WebkitOverflowScrolling: 'touch'
               }}
             >
-              {/* Project 1 */}
-              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                <div className="relative h-64">
-                  <Image
-                    src="/africa-map-political-disruption-concept.jpg"
-                    alt="Political disruption research"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex gap-2 mb-4">
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Governance
-                    </span>
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Political Change
-                    </span>
+              {projects.map((project) => (
+                <div key={project.id} className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
+                  <div className="relative h-64">
+                    <Image
+                      src={project.image || "/images/about/1.jpg"}
+                      alt={project.title}
+                      fill
+                      className="object-cover"
+                    />
                   </div>
-                  <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
-                    Governance Under Pressure: Institutional Responses to
-                    Political Disruption
-                  </h4>
-                  <p className="text-[#767676] text-sm leading-relaxed">
-                    This research project examines how digital platforms and
-                    social media shape youth political engagement, protest
-                    movements, and new forms focusing...
-                  </p>
-                </div>
-              </div>
-
-              {/* Project 2 */}
-              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                <div className="relative h-64">
-                  <Image
-                    src="/african-woman-scholar-with-books-library.jpg"
-                    alt="Migration research journal"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex gap-2 mb-4">
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Migration
-                    </span>
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Research
-                    </span>
+                  <div className="p-6">
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      {project.tags.map((tag: string) => (
+                        <span key={tag} className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
+                      {project.title}
+                    </h4>
+                    <p className="text-[#767676] text-sm leading-relaxed line-clamp-3">
+                      {project.description}
+                    </p>
                   </div>
-                  <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
-                    Ìrìnkèrindò: A Journal of African Migration
-                  </h4>
-                  <p className="text-[#767676] text-sm leading-relaxed">
-                    Ìrìnkèrindò is a peer-reviewed journal dedicated to advancing
-                    scholarly understanding of African migration, mobility, and
-                    displacement.
-                  </p>
                 </div>
-              </div>
-
-              {/* Project 3 */}
-              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                <div className="relative h-64">
-                  <Image
-                    src="/african-people-with-water-containers-migration.jpg"
-                    alt="Migration governance research"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex gap-2 mb-4">
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Policy
-                    </span>
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Migration
-                    </span>
-                  </div>
-                  <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
-                    Mobility, Borders, and Belonging: Rethinking Migration
-                    Governance in Africa
-                  </h4>
-                  <p className="text-[#767676] text-sm leading-relaxed">
-                    This publication explores contemporary migration governance
-                    frameworks across Africa, questioning existing policy
-                    assumptions and proposing alterna...
-                  </p>
-                </div>
-              </div>
-
-              {/* Project 4 */}
-              <div className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                <div className="relative h-64">
-                  <Image
-                    src="/african-people-with-water-containers-migration.jpg"
-                    alt="Migration governance research"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex gap-2 mb-4">
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Technology
-                    </span>
-                    <span className="bg-[#000000] text-white text-xs px-3 py-1 rounded-full">
-                      Innovation
-                    </span>
-                  </div>
-                  <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
-                    Digital Transformation and Social Change in African Cities
-                  </h4>
-                  <p className="text-[#767676] text-sm leading-relaxed">
-                    Examining how rapid technological adoption is reshaping urban
-                    governance, economic opportunities, and social structures
-                    across major African cities...
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

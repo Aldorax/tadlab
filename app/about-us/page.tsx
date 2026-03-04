@@ -7,8 +7,42 @@ import MissionVisionSection from "@/components/mission";
 import NavBar from "@/components/navbar";
 import TeamSection from "@/components/team";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { getPageContent } from "@/app/actions/content";
 
 export default function AboutUsPage() {
+  const [heroContent, setHeroContent] = useState({
+    title: "ABOUT US",
+    sub: "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding how large-scale social, political, economic, and technological disruptions shape societies across Africa — and how evidence-based responses can be developed in real time.\n\nOur work bridges research, policy, and practice by grounding inquiry in real-world contexts and engaging those most affected by change as active contributors to the research process.",
+    image: "/images/about.jpg"
+  });
+
+  useEffect(() => {
+    async function fetchContent() {
+      const data = await getPageContent("about");
+      if (data) {
+        setHeroContent({
+          title: data.heroTitle || "ABOUT US",
+          sub: data.heroSub || "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding how large-scale social, political, economic, and technological disruptions shape societies across Africa — and how evidence-based responses can be developed in real time.\n\nOur work bridges research, policy, and practice by grounding inquiry in real-world contexts and engaging those most affected by change as active contributors to the research process.",
+          image: data.heroImage || "/images/about.jpg"
+        });
+      }
+    }
+    fetchContent();
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data?.type === 'PREVIEW_CONTENT' && data?.pageId === 'about') {
+        setHeroContent((prev) => ({
+          title: data.payload.heroTitle || prev.title,
+          sub: data.payload.heroSub || prev.sub,
+          image: data.payload.heroImage || prev.image,
+        }));
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
   return (
     <div className="min-h-screen">
       {/* Construction Banner */}
@@ -18,7 +52,7 @@ export default function AboutUsPage() {
       <section
         className="relative h-[70vh] bg-cover bg-center"
         style={{
-          backgroundImage: "url('/images/about.jpg')",
+          backgroundImage: `url('${heroContent.image}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -32,8 +66,8 @@ export default function AboutUsPage() {
         {/* Hero Content */}
         <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-16 flex items-end h-full font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
-            <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-[1.1]">
-              ABOUT US
+            <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-[1.1] whitespace-pre-line">
+              {heroContent.title}
             </h2>
           </div>
         </div>
@@ -53,11 +87,8 @@ export default function AboutUsPage() {
                 About the African Futures <br />
                 and Disruption Studies Lab
               </h3>
-              <p className="text-[#767676] text-lg md:text-right leading-relaxed">
-                The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding how large-scale social, political, economic, and technological disruptions shape societies across Africa — and how evidence-based responses can be developed in real time.
-                <br />
-                <br />
-                Our work bridges research, policy, and practice by grounding inquiry in real-world contexts and engaging those most affected by change as active contributors to the research process.
+              <p className="text-[#767676] text-lg md:text-right leading-relaxed whitespace-pre-line">
+                {heroContent.sub}
               </p>
             </div>
           </div>
