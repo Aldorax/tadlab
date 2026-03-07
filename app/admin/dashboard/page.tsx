@@ -8,6 +8,7 @@ import {
 import { createEvent, getEvents, deleteEvent } from "@/app/actions/events";
 import { getPageContent, updatePageContent } from "@/app/actions/content";
 import { createProject, getProjects, deleteProject } from "@/app/actions/projects";
+import { createBlogPost, getBlogPosts, deleteBlogPost } from "@/app/actions/blog";
 import { useRef } from "react";
 
 export default function AdminDashboard() {
@@ -19,6 +20,9 @@ export default function AdminDashboard() {
     // Projects State
     const [projects, setProjects] = useState<any[]>([]);
 
+    // Blogs State
+    const [blogs, setBlogs] = useState<any[]>([]);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form State (Shared between Event and Project for simplicity)
@@ -29,6 +33,15 @@ export default function AdminDashboard() {
     const [link, setLink] = useState("");
     const [tags, setTags] = useState("");
     const [file, setFile] = useState<File | null>(null);
+
+    // Additional Form State for Blogs
+    const [slug, setSlug] = useState("");
+    const [excerpt, setExcerpt] = useState("");
+    const [content, setContent] = useState("");
+    const [author, setAuthor] = useState("");
+    const [metaTitle, setMetaTitle] = useState("");
+    const [metaDescription, setMetaDescription] = useState("");
+    const [published, setPublished] = useState(false);
 
     // Content State
     const [pageId, setPageId] = useState("homepage");
@@ -43,6 +56,7 @@ export default function AdminDashboard() {
     const getPreviewPath = () => {
         if (activeTab === "events") return "/events";
         if (activeTab === "projects") return "/projects";
+        if (activeTab === "blogs") return "/blog";
         if (activeTab === "content" && pageId === "about") return "/about-us";
         if (activeTab === "content" && pageId === "research") return "/research";
         return "/";
@@ -53,6 +67,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         if (activeTab === "events") loadEvents();
         if (activeTab === "projects") loadProjects();
+        if (activeTab === "blogs") loadBlogs();
     }, [activeTab]);
 
     useEffect(() => {
@@ -61,6 +76,7 @@ export default function AdminDashboard() {
 
     const loadEvents = async () => setEvents(await getEvents());
     const loadProjects = async () => setProjects(await getProjects());
+    const loadBlogs = async () => setBlogs(await getBlogPosts());
 
     const loadContent = async () => {
         const data = await getPageContent(pageId);
@@ -142,6 +158,29 @@ export default function AdminDashboard() {
         return data.url;
     };
 
+    const handleBlogSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            let imageUrl = null;
+            if (file) imageUrl = await uploadImage(file);
+
+            await createBlogPost({
+                title, slug, excerpt, content, image: imageUrl, author, metaTitle, metaDescription, published,
+                tags: tags.split(",").map(t => t.trim()).filter(Boolean),
+            });
+
+            alert("Blog created successfully!");
+            resetForm();
+            loadBlogs();
+        } catch (error) {
+            console.error(error);
+            alert("Failed to create blog");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleEventSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -190,6 +229,7 @@ export default function AdminDashboard() {
 
     const resetForm = () => {
         setTitle(""); setDate(""); setLocation(""); setDescription(""); setLink(""); setTags(""); setFile(null);
+        setSlug(""); setExcerpt(""); setContent(""); setAuthor(""); setMetaTitle(""); setMetaDescription(""); setPublished(false);
     };
 
     const handleDeleteEvent = async (id: string) => {
@@ -203,6 +243,13 @@ export default function AdminDashboard() {
         if (confirm("Are you sure you want to delete this project?")) {
             await deleteProject(id);
             loadProjects();
+        }
+    };
+
+    const handleDeleteBlog = async (id: string) => {
+        if (confirm("Are you sure you want to delete this blog post?")) {
+            await deleteBlogPost(id);
+            loadBlogs();
         }
     };
 
@@ -226,6 +273,12 @@ export default function AdminDashboard() {
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "projects" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
                     >
                         <BookOpen className="w-5 h-5" /> Projects
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab("blogs"); resetForm(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "blogs" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
+                    >
+                        <FileText className="w-5 h-5" /> Blogs
                     </button>
                     <button
                         onClick={() => { setActiveTab("events"); resetForm(); }}
@@ -359,6 +412,104 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleDeleteProject(project.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "blogs" && (
+                    <div className="w-full">
+                        <div className="flex justify-between items-center mb-8">
+                            <h1 className="text-3xl font-bold text-gray-900">Blogs Management</h1>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
+                            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                                <Upload className="w-5 h-5 text-gray-500" /> Create New Blog Post
+                            </h2>
+                            <form className="space-y-6" onSubmit={handleBlogSubmit}>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="text-sm font-medium text-gray-700">Post Title</label>
+                                        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="text-sm font-medium text-gray-700">Slug URL (e.g. my-post-title)</label>
+                                        <input type="text" required value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'))} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-sm font-medium text-gray-700">Excerpt (Short description)</label>
+                                        <textarea rows={2} required value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="text-sm font-medium text-gray-700">Content (Markdown or Text)</label>
+                                        <textarea rows={8} required value={content} onChange={(e) => setContent(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="text-sm font-medium text-gray-700">Author</label>
+                                        <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                                        <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <h3 className="text-md font-semibold mt-4 text-gray-800">SEO Settings</h3>
+                                        <hr className="mb-4" />
+                                        <label className="text-sm font-medium text-gray-700">Meta Title</label>
+                                        <input type="text" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black mb-4" />
+                                        <label className="text-sm font-medium text-gray-700">Meta Description</label>
+                                        <textarea rows={2} value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
+                                    </div>
+                                    <div className="col-span-2 flex items-center mt-2">
+                                        <input type="checkbox" id="published" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                                        <label htmlFor="published" className="ml-2 block text-sm text-gray-900"> Publish immediately </label>
+                                    </div>
+                                </div>
+                                <div className="mt-6">
+                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Cover Image</label>
+                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
+                                        <div className="space-y-1 text-center">
+                                            <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                            <div className="flex text-sm text-gray-600 justify-center">
+                                                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none p-1">
+                                                    <span>Upload a file</span>
+                                                    <input type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} accept="image/*" />
+                                                </label>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+                                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400">
+                                        {isSubmitting ? "Saving..." : "Save Blog Post"}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                            <h3 className="font-semibold text-gray-900 mb-4">Active Blogs (Database)</h3>
+                            <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
+                                {blogs.length === 0 ? (
+                                    <div className="p-4 text-center text-gray-500 text-sm">No blogs found. Create one above!</div>
+                                ) : (
+                                    blogs.map((blog) => (
+                                        <div key={blog.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                            <div>
+                                                <div className="font-medium text-gray-900">{blog.title}</div>
+                                                <div className="text-sm text-gray-500 flex gap-1 mt-1">
+                                                    <span className={`px-2 py-0.5 rounded text-xs ${blog.published ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}`}>{blog.published ? 'Published' : 'Draft'}</span>
+                                                    {blog.tags.map((t: string) => <span key={t} className="bg-gray-200 px-2 py-0.5 rounded text-xs">{t}</span>)}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleDeleteBlog(blog.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
                                             </div>
                                         </div>
                                     ))
