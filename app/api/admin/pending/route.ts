@@ -10,14 +10,14 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Editors can only see their own pending changes
-        // Admins and Super Admins can see all
-        const where = isMasterAdminRole(user.role)
-            ? {}
-            : { submittedById: user.id };
+        if (!isMasterAdminRole(user.role)) {
+            return NextResponse.json(
+                { error: "Only master control accounts can review changes." },
+                { status: 403 },
+            );
+        }
 
         const changes = await prisma.pendingChange.findMany({
-            where,
             orderBy: { createdAt: "desc" },
             include: {
                 submittedBy: { select: { name: true, email: true, role: true } },

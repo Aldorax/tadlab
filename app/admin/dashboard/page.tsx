@@ -180,8 +180,10 @@ export default function AdminDashboard() {
 
   const approvalRequired = currentUser ? requiresApproval(currentUser.role) : true;
   const canManageUsers = currentUser ? isMasterAdminRole(currentUser.role) : false;
+  const canReviewChanges = currentUser ? isMasterAdminRole(currentUser.role) : false;
   const invitableRoles = currentUser ? getInvitableRoles(currentUser.role) : [MID_LEVEL_ADMIN_ROLE];
   const canAccessControlCenter = currentUser ? currentUser.role !== "EDITOR" : false;
+  const showCurrentUserRole = currentUser ? isMasterAdminRole(currentUser.role) : false;
   const builderPage = getBuilderPage(pageId);
   const builderPages = getBuilderPages();
 
@@ -289,7 +291,7 @@ export default function AdminDashboard() {
 
   const refreshControlData = async () => {
     await Promise.all([
-      loadPendingChanges(),
+      ...(canReviewChanges ? [loadPendingChanges()] : []),
       loadInvites(),
       ...(canManageUsers ? [loadUsers()] : []),
     ]);
@@ -338,7 +340,12 @@ export default function AdminDashboard() {
     if (!currentUser) return;
 
     if (activeTab === "settings" && !canAccessControlCenter) {
-      setActiveTab("approvals");
+      setActiveTab("content");
+      return;
+    }
+
+    if (activeTab === "approvals" && !canReviewChanges) {
+      setActiveTab("content");
       return;
     }
 
@@ -354,12 +361,12 @@ export default function AdminDashboard() {
     if (activeTab === "content") {
       void loadContent().catch((error: Error) => showError(error.message));
     }
-    if (activeTab === "approvals" || activeTab === "settings") {
+    if ((activeTab === "approvals" && canReviewChanges) || activeTab === "settings") {
       void refreshControlData().catch((error: Error) => {
         showError(error.message);
       });
     }
-  }, [activeTab, currentUser, pageId, canManageUsers, canAccessControlCenter]);
+  }, [activeTab, currentUser, pageId, canManageUsers, canAccessControlCenter, canReviewChanges]);
 
   useEffect(() => {
     if (activeTab === "content" && iframeRef.current?.contentWindow) {
@@ -454,7 +461,9 @@ export default function AdminDashboard() {
 
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         setPageSections(result.sections || pageSections);
         showSuccess(result.message || "Content published successfully.");
@@ -492,7 +501,9 @@ export default function AdminDashboard() {
 
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Blog post published successfully.");
         await loadBlogs();
@@ -527,7 +538,9 @@ export default function AdminDashboard() {
 
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Event published successfully.");
         await loadEvents();
@@ -564,7 +577,9 @@ export default function AdminDashboard() {
 
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Project published successfully.");
         await loadProjects();
@@ -584,7 +599,9 @@ export default function AdminDashboard() {
       const result = await deleteEvent(id);
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Event deleted successfully.");
         await loadEvents();
@@ -602,7 +619,9 @@ export default function AdminDashboard() {
       const result = await deleteProject(id);
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Project deleted successfully.");
         await loadProjects();
@@ -620,7 +639,9 @@ export default function AdminDashboard() {
       const result = await deleteBlogPost(id);
       if (isPendingResult(result)) {
         showSuccess(result.message);
-        await loadPendingChanges();
+        if (canReviewChanges) {
+          await loadPendingChanges();
+        }
       } else {
         showSuccess("Blog post deleted successfully.");
         await loadBlogs();
@@ -845,9 +866,11 @@ export default function AdminDashboard() {
           <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
             <p className="text-sm font-semibold text-gray-900">{currentUser.name}</p>
             <p className="text-sm text-gray-500 break-all">{currentUser.email}</p>
-            <span className="mt-3 inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-              {ROLE_LABELS[currentUser.role] || currentUser.role}
-            </span>
+            {showCurrentUserRole && (
+              <span className="mt-3 inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                {ROLE_LABELS[currentUser.role] || currentUser.role}
+              </span>
+            )}
           </div>
         )}
 
@@ -857,7 +880,9 @@ export default function AdminDashboard() {
             { id: "projects", label: "Projects", icon: BookOpen },
             { id: "blogs", label: "Blogs", icon: FileText },
             { id: "events", label: "Events", icon: Calendar },
-            { id: "approvals", label: "Approvals", icon: ClipboardCheck },
+            ...(canReviewChanges
+              ? [{ id: "approvals", label: "Approvals", icon: ClipboardCheck }]
+              : []),
             ...(canAccessControlCenter
               ? [{ id: "settings", label: "Control Center", icon: Settings }]
               : []),

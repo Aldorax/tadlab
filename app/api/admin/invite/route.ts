@@ -8,6 +8,10 @@ import {
     isMasterAdminRole,
 } from "@/lib/admin-roles";
 
+function getInviteRegistrationUrl(baseUrl: string, token: string) {
+    return `${baseUrl}/i/${token}`;
+}
+
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
@@ -76,7 +80,7 @@ export async function POST(req: NextRequest) {
 
         // Build the registration URL
         const baseUrl = req.nextUrl.origin;
-        const registrationUrl = `${baseUrl}/admin/register?token=${token}`;
+        const registrationUrl = getInviteRegistrationUrl(baseUrl, token);
 
         return NextResponse.json({
             success: true,
@@ -115,7 +119,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
             invites: invites.map((invite) => ({
                 ...invite,
-                registrationUrl: `${baseUrl}/admin/register?token=${invite.token}`,
+                registrationUrl: getInviteRegistrationUrl(baseUrl, invite.token),
             })),
         });
     } catch (error: any) {
