@@ -20,7 +20,7 @@ export default function ContactPage() {
       <ConstructionBanner />
 
       <section
-        className="relative h-[60vh] bg-cover bg-center"
+        className="relative h-[50vh] min-h-[420px] bg-cover bg-center sm:h-[60vh]"
         style={{
           backgroundImage: `url('${readString(hero.image, "/images/contact.jpg")}')`,
           backgroundSize: "cover",
@@ -30,9 +30,9 @@ export default function ContactPage() {
         <div className="absolute inset-0 bg-linear-to-b from-black/30 via-transparent to-black/50" />
         <NavBar />
 
-        <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-16 flex items-end h-full font-bricolage">
+        <div className="relative z-10 flex h-full items-end px-4 pb-12 pt-28 sm:px-6 sm:pt-32 md:px-8 lg:px-16 lg:pb-16 lg:pt-40 font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
-            <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-[1.1]">
+            <h2 className="mb-4 text-4xl font-bold leading-[1.1] text-white sm:text-5xl md:text-7xl lg:text-8xl">
               {readString(hero.title, "CONTACT US")}
             </h2>
           </div>

@@ -41,12 +41,12 @@ export default function ContactSection({ content }: ContactSectionProps) {
   }
 
   return (
-    <section className="bg-white py-16 px-6 md:px-12 lg:px-24">
+    <section className="bg-white px-4 py-14 sm:px-6 sm:py-16 md:px-12 lg:px-24">
       <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-12 lg:gap-24 mb-16">
+        <div className="mb-14 grid gap-10 md:grid-cols-2 md:gap-12 lg:mb-16 lg:gap-24">
           {/* Left Column - Heading and Contact Info */}
           <div>
-            <h2 className="text-4xl md:text-5xl font-bold text-[#1a1a1a] mb-12 leading-tight">
+            <h2 className="mb-8 text-3xl font-bold leading-tight text-[#1a1a1a] sm:text-4xl md:mb-12 md:text-5xl">
               {content.heading.split("\n").map((line, index) => (
                 <span key={line}>
                   {index > 0 && <br />}
@@ -157,7 +157,7 @@ export default function ContactSection({ content }: ContactSectionProps) {
           <img
             src={content.bottomImage || "/images/elephants.jpg"}
             alt={content.heading}
-            className="w-full h-[400px] md:h-[500px] object-cover"
+            className="h-[260px] w-full object-cover sm:h-[360px] md:h-[500px]"
           />
         </div>
       </div>

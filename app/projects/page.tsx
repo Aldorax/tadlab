@@ -109,7 +109,7 @@ export default async function ProjectsPage() {
               <span className="text-sm font-medium text-white tracking-wide uppercase relative z-10 transition-transform duration-500 group-hover:translate-x-1">Innovation Lab</span>
               <div className="absolute inset-0 bg-white/5 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
             </div>
-            <h1 className="text-6xl md:text-8xl lg:text-[10rem] font-bold text-white tracking-tighter leading-[0.9] font-bricolage whitespace-pre-line drop-shadow-lg">
+            <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[10rem] font-bold text-white tracking-tighter leading-[0.9] font-bricolage whitespace-pre-line drop-shadow-lg">
               {typeof hero.title === "string" && hero.title ? hero.title : "PROJECTS"}
             </h1>
           </div>
@@ -128,13 +128,13 @@ export default async function ProjectsPage() {
                     {typeof intro.sectionTitle === "string" && intro.sectionTitle ? intro.sectionTitle : "Intro"}
                   </h2>
                 </div>
-                <h3 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl font-bricolage whitespace-pre-line leading-[1.1]">
+                <h3 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl font-bricolage whitespace-pre-line leading-[1.1]">
                   {typeof intro.heading === "string" && intro.heading ? intro.heading : "Research and Initiatives"}
                 </h3>
               </div>
               
               <div className="lg:pt-16">
-                 <p className="text-xl leading-relaxed text-gray-600 whitespace-pre-line font-medium border-l-4 border-emerald-500 pl-6 h-full">
+                 <p className="text-lg sm:text-xl leading-relaxed text-gray-600 whitespace-pre-line font-medium border-l-4 border-emerald-500 pl-6 h-full">
                   {typeof intro.description === "string" && intro.description
                     ? intro.description
                     : "The Africa Disruptions Lab conducts collaborative, solutions-driven research focused on understanding societal disruptions across Africa and translating evidence into practical insights for policy and practice.\n\nOur research combines analytical rigor with participatory methods and real-world experimentation, allowing us to study change as it unfolds and to co-develop responses grounded in lived realities."}

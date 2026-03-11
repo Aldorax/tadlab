@@ -53,7 +53,7 @@ export default function AboutUsPage() {
               <span className="text-sm font-medium text-white tracking-wide uppercase relative z-10 transition-transform duration-500 group-hover:translate-x-1">Discover TADLab</span>
               <div className="absolute inset-0 bg-white/5 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
             </div>
-            <h1 className="text-6xl md:text-8xl lg:text-[10rem] font-bold text-white tracking-tighter leading-[0.9] font-bricolage whitespace-pre-line drop-shadow-lg">
+            <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[10rem] font-bold text-white tracking-tighter leading-[0.9] font-bricolage whitespace-pre-line drop-shadow-lg">
               {readString(hero.title, "ABOUT US")}
             </h1>
           </div>

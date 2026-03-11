@@ -125,16 +125,16 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-linear-to-b from-black/30 via-transparent to-black/50" />
         <NavBar />
 
-        <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-32 flex items-center h-[90vh] font-bricolage">
+        <div className="relative z-10 flex min-h-[80svh] items-center px-4 pb-20 pt-28 sm:px-6 sm:pt-32 md:px-8 lg:px-16 lg:pb-32 lg:pt-40 font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
-            <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1] whitespace-pre-line">
+            <h2 className="mb-6 text-3xl font-bold leading-[1.1] text-white whitespace-pre-line sm:text-5xl md:text-6xl lg:text-7xl">
               {readString(hero.title)}
             </h2>
-            <p className="text-base md:text-xl text-white/90 mb-8 font-semibold leading-relaxed max-w-4xl whitespace-pre-line">
+            <p className="mb-8 max-w-4xl text-sm font-semibold leading-relaxed text-white/90 whitespace-pre-line sm:text-base md:text-xl">
               {readString(hero.description)}
             </p>
             <Link href={readString(hero.ctaHref, "/research")}>
-              <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-4 md:py-6 text-base font-medium transition-all hover:scale-105">
+              <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-6 py-3 sm:px-8 sm:py-4 md:py-6 text-sm sm:text-base font-medium transition-all hover:scale-105">
                 {readString(hero.ctaLabel, "Explore Our Research")}
               </Button>
             </Link>
@@ -142,24 +142,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#f5f5f5] py-24">
-        <div className="container mx-auto px-8">
+      <section className="bg-[#f5f5f5] py-16 sm:py-20 lg:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between">
             <div className="flex items-start gap-4 mb-16">
               <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-              <h2 className="text-4xl font-bold text-[#1a1a1a]">{readString(about.sectionTitle, "About Us")}</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a1a]">{readString(about.sectionTitle, "About Us")}</h2>
             </div>
 
             <div className="mb-16">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] text-right mb-8 whitespace-pre-line">
+              <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold text-[#1a1a1a] text-left md:text-right mb-6 sm:mb-8 whitespace-pre-line">
                 {readString(about.heading)}
               </h3>
-              <p className="text-[#767676] text-lg text-right max-w-3xl ml-auto leading-relaxed mb-8 whitespace-pre-line">
+              <p className="text-[#767676] text-base sm:text-lg text-left md:text-right max-w-3xl ml-0 md:ml-auto leading-relaxed mb-8 whitespace-pre-line">
                 {readString(about.description)}
               </p>
-              <div className="flex justify-end">
+              <div className="flex justify-start md:justify-end">
                 <Link href={readString(about.ctaHref, "/about-us")}>
-                  <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-3 md:py-6 transition-all hover:scale-105">
+                  <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-6 py-3 sm:px-8 md:py-6 transition-all hover:scale-105">
                     {readString(about.ctaLabel, "Learn More")}
                   </Button>
                 </Link>
@@ -173,24 +173,24 @@ export default function LandingPage() {
               alt={readString(about.sectionTitle, "About section")}
               width={1400}
               height={600}
-              className="w-full h-[600px] object-cover"
+              className="h-[280px] w-full object-cover sm:h-[420px] lg:h-[600px]"
             />
           </div>
         </div>
       </section>
 
-      <section className="bg-[#000000] py-24">
-        <div className="container mx-auto px-8">
+      <section className="bg-[#000000] py-16 sm:py-20 lg:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-start gap-4 mb-16">
             <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-            <h2 className="text-4xl font-bold text-[#d1d1d1]">{readString(howWeWork.sectionTitle, "How We Work")}</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#d1d1d1]">{readString(howWeWork.sectionTitle, "How We Work")}</h2>
           </div>
 
-          <div className="mb-20">
-            <h3 className="text-3xl md:text-5xl font-bold text-white text-right mb-8 whitespace-pre-line">
+          <div className="mb-16 sm:mb-20">
+            <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white text-left md:text-right mb-6 sm:mb-8 whitespace-pre-line">
               {readString(howWeWork.heading)}
             </h3>
-            <p className="text-[#767676] text-lg text-right max-w-2xl ml-auto leading-relaxed whitespace-pre-line">
+            <p className="text-[#767676] text-base sm:text-lg text-left md:text-right max-w-2xl ml-0 md:ml-auto leading-relaxed whitespace-pre-line">
               {readString(howWeWork.description)}
             </p>
           </div>
@@ -227,22 +227,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#f5f5f5] py-24">
-        <div className="container mx-auto px-8">
+      <section className="bg-[#f5f5f5] py-16 sm:py-20 lg:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-start flex-col md:flex-row justify-between mb-16">
             <div className="flex items-center gap-4">
               <div className="w-3 h-3 rounded-full bg-black mt-2" />
-              <h2 className="text-3xl md:text-4xl font-bold text-[#1a1a1a]">{readString(projectsShowcase.sectionTitle, "Projects")}</h2>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#1a1a1a]">{readString(projectsShowcase.sectionTitle, "Projects")}</h2>
             </div>
             <div className="flex flex-col gap-2 mt-8 md:mt-0">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
+              <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
                 {readString(projectsShowcase.heading)}
               </h3>
-              <p className="text-[#767676] text-lg md:text-right max-w-2xl md:ml-auto leading-relaxed mb-4 whitespace-pre-line">
+              <p className="text-[#767676] text-base sm:text-lg md:text-right max-w-2xl md:ml-auto leading-relaxed mb-4 whitespace-pre-line">
                 {readString(projectsShowcase.description)}
               </p>
               <Link href={readString(projectsShowcase.ctaHref, "/projects")} className="md:ml-auto">
-                <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-3 md:py-6 transition-all hover:scale-105">
+                <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-6 py-3 sm:px-8 md:py-6 transition-all hover:scale-105">
                   {readString(projectsShowcase.ctaLabel, "View All")}
                 </Button>
               </Link>
@@ -252,7 +252,7 @@ export default function LandingPage() {
           <div className="relative group">
             <button
               onClick={scrollLeft}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full p-3 shadow-xl transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+              className="absolute left-4 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-black/80 p-3 text-white shadow-xl transition-all hover:scale-110 hover:bg-black md:flex md:opacity-0 md:group-hover:opacity-100"
               aria-label="Scroll left"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -260,7 +260,7 @@ export default function LandingPage() {
 
             <button
               onClick={scrollRight}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full p-3 shadow-xl transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+              className="absolute right-4 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-black/80 p-3 text-white shadow-xl transition-all hover:scale-110 hover:bg-black md:flex md:opacity-0 md:group-hover:opacity-100"
               aria-label="Scroll right"
             >
               <ChevronRight className="w-6 h-6" />
@@ -268,7 +268,7 @@ export default function LandingPage() {
 
             <div
               ref={scrollContainerRef}
-              className="flex gap-8 overflow-x-auto pb-4 scrollbar-hide"
+              className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 scrollbar-hide sm:gap-6 lg:gap-8"
               style={{
                 scrollBehavior: "smooth",
                 msOverflowStyle: "none",
@@ -277,8 +277,8 @@ export default function LandingPage() {
               }}
             >
               {projects.map((project) => (
-                <div key={project.id} className="max-w-[325px] md:max-w-[460px] shrink-0 overflow-hidden bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                  <div className="relative h-64">
+                <div key={project.id} className="w-[85vw] max-w-[325px] snap-start shrink-0 overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-xl md:max-w-[460px]">
+                  <div className="relative h-56 sm:h-64">
                     <Image
                       src={project.image || "/images/about/1.jpg"}
                       alt={project.title}
@@ -304,18 +304,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#f5f5f5] py-24">
-        <div className="container mx-auto px-8">
+      <section className="bg-[#f5f5f5] py-16 sm:py-20 lg:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between gap-4 mb-16">
             <div className="flex gap-4 items-start">
               <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-              <h2 className="text-4xl font-bold text-[#1a1a1a]">{readString(whyItMatters.sectionTitle, "Why This Work Matters")}</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-[#1a1a1a]">{readString(whyItMatters.sectionTitle, "Why This Work Matters")}</h2>
             </div>
             <div className="mb-16">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
+              <h3 className="text-2xl sm:text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
                 {readString(whyItMatters.heading)}
               </h3>
-              <p className="text-[#767676] text-lg md:text-right max-w-3xl md:ml-auto leading-relaxed whitespace-pre-line">
+              <p className="text-[#767676] text-base sm:text-lg md:text-right max-w-3xl md:ml-auto leading-relaxed whitespace-pre-line">
                 {readString(whyItMatters.description)}
               </p>
             </div>
@@ -327,7 +327,7 @@ export default function LandingPage() {
               alt={readString(whyItMatters.sectionTitle, "Why it matters")}
               width={1400}
               height={600}
-              className="w-full h-[600px] object-cover"
+              className="h-[280px] w-full object-cover sm:h-[420px] lg:h-[600px]"
             />
           </div>
         </div>

@@ -9,11 +9,16 @@ import {
   Copy,
   FileText,
   Image as ImageIcon,
+  Laptop,
   LogOut,
+  Maximize2,
+  Minimize2,
   MonitorPlay,
   RefreshCcw,
   Settings,
   Shield,
+  Smartphone,
+  Tablet,
   Upload,
   UserPlus,
   Users,
@@ -88,6 +93,18 @@ type PendingResult = {
 };
 
 type PageBuilderSections = Record<string, Record<string, BuilderFieldValue>>;
+type PreviewViewport = "desktop" | "tablet" | "mobile";
+
+const PREVIEW_VIEWPORTS: Array<{
+  id: PreviewViewport;
+  label: string;
+  icon: typeof Laptop;
+  frameClassName: string;
+}> = [
+  { id: "desktop", label: "Desktop", icon: Laptop, frameClassName: "w-full" },
+  { id: "tablet", label: "Tablet", icon: Tablet, frameClassName: "w-full max-w-[820px]" },
+  { id: "mobile", label: "Mobile", icon: Smartphone, frameClassName: "w-full max-w-[390px]" },
+];
 
 function isPendingResult(value: unknown): value is PendingResult {
   return Boolean(
@@ -175,6 +192,9 @@ export default function AdminDashboard() {
 
   const [pageId, setPageId] = useState("homepage");
   const [pageSections, setPageSections] = useState<PageBuilderSections>(() => createDefaultPageSections("homepage"));
+  const [previewViewport, setPreviewViewport] = useState<PreviewViewport>("desktop");
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
+  const [previewAssetUrl, setPreviewAssetUrl] = useState<string | null>(null);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -186,6 +206,8 @@ export default function AdminDashboard() {
   const showCurrentUserRole = currentUser ? isMasterAdminRole(currentUser.role) : false;
   const builderPage = getBuilderPage(pageId);
   const builderPages = getBuilderPages();
+  const previewViewportConfig =
+    PREVIEW_VIEWPORTS.find((viewport) => viewport.id === previewViewport) ?? PREVIEW_VIEWPORTS[0];
 
   const getPreviewPath = () => {
     if (activeTab === "events") return "/events";
@@ -205,6 +227,12 @@ export default function AdminDashboard() {
   const showError = (message: string) => {
     setErrorMessage(message);
     setStatusMessage("");
+  };
+
+  const refreshPreviewFrame = () => {
+    if (iframeRef.current) {
+      iframeRef.current.src = iframeRef.current.src;
+    }
   };
 
   const resetForm = () => {
@@ -337,6 +365,20 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!file) {
+      setPreviewAssetUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewAssetUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
+
+  useEffect(() => {
     if (!currentUser) return;
 
     if (activeTab === "settings" && !canAccessControlCenter) {
@@ -368,10 +410,12 @@ export default function AdminDashboard() {
     }
   }, [activeTab, currentUser, pageId, canManageUsers, canAccessControlCenter, canReviewChanges]);
 
-  useEffect(() => {
-    if (activeTab === "content" && iframeRef.current?.contentWindow) {
-      // Keep the live preview in sync with the section-based page builder state.
-      iframeRef.current.contentWindow.postMessage(
+  const syncPreviewFrame = () => {
+    const frameWindow = iframeRef.current?.contentWindow;
+    if (!frameWindow) return;
+
+    if (activeTab === "content") {
+      frameWindow.postMessage(
         {
           type: "PREVIEW_SITE_PAGE",
           pageId,
@@ -379,35 +423,27 @@ export default function AdminDashboard() {
         },
         "*",
       );
+      return;
     }
-  }, [pageSections, pageId, activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "projects" && iframeRef.current?.contentWindow) {
-      const imageUrl = file ? URL.createObjectURL(file) : "/images/about/1.jpg";
-      iframeRef.current.contentWindow.postMessage(
+    if (activeTab === "projects") {
+      frameWindow.postMessage(
         {
           type: "PREVIEW_PROJECT",
           payload: {
             title: title || "New Project Title",
             description: description || "Project description...",
-            image: imageUrl,
+            image: previewAssetUrl || "/images/about/1.jpg",
             tags: tags ? tags.split(",").map((tag) => tag.trim()).filter(Boolean) : ["Tag 1", "Tag 2"],
           },
         },
         "*",
       );
-
-      return () => {
-        if (file) URL.revokeObjectURL(imageUrl);
-      };
+      return;
     }
-  }, [title, description, file, tags, activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "events" && iframeRef.current?.contentWindow) {
-      const imageUrl = file ? URL.createObjectURL(file) : "/events/africa-after-davos.jpeg";
-      iframeRef.current.contentWindow.postMessage(
+    if (activeTab === "events") {
+      frameWindow.postMessage(
         {
           type: "PREVIEW_EVENT",
           payload: {
@@ -416,19 +452,30 @@ export default function AdminDashboard() {
             location: location || "Event Location",
             shortDescription: description || "",
             fullDescription: description || "",
-            image: imageUrl,
+            image: previewAssetUrl || "/events/africa-after-davos.jpeg",
             link: link || "#",
             tags: tags ? tags.split(",").map((tag) => tag.trim()).filter(Boolean) : ["Event"],
           },
         },
         "*",
       );
-
-      return () => {
-        if (file) URL.revokeObjectURL(imageUrl);
-      };
     }
-  }, [title, date, location, description, link, file, tags, activeTab]);
+  };
+
+  useEffect(() => {
+    syncPreviewFrame();
+  }, [
+    activeTab,
+    pageId,
+    pageSections,
+    title,
+    date,
+    location,
+    description,
+    link,
+    tags,
+    previewAssetUrl,
+  ]);
 
   const uploadImage = async (asset: File) => {
     const formData = new FormData();
@@ -848,8 +895,8 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col z-10">
+    <div className="min-h-screen bg-gray-50 xl:flex">
+      <div className="w-full bg-white border-b border-gray-200 xl:flex xl:w-72 xl:shrink-0 xl:flex-col xl:border-b-0 xl:border-r z-10">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-black text-white flex items-center justify-center">
@@ -921,7 +968,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="w-[520px] xl:w-[640px] shrink-0 p-8 h-screen overflow-y-auto border-r border-gray-200 bg-white">
+      <div className="w-full bg-white p-4 sm:p-6 xl:h-screen xl:w-[640px] xl:shrink-0 xl:overflow-y-auto xl:border-r xl:border-gray-200 xl:p-8">
         {(statusMessage || errorMessage) && (
           <div className="mb-6 space-y-3">
             {statusMessage && (
@@ -936,6 +983,49 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Live Draft Preview</p>
+              <p className="text-xs text-gray-500">{previewPath}</p>
+            </div>
+            <button
+              onClick={() => setIsPreviewFullscreen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-black px-3 py-2 text-sm font-medium text-white"
+            >
+              <Maximize2 className="h-4 w-4" />
+              Open Preview
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PREVIEW_VIEWPORTS.map((viewport) => {
+              const Icon = viewport.icon;
+              const isActive = previewViewport === viewport.id;
+              return (
+                <button
+                  key={viewport.id}
+                  onClick={() => setPreviewViewport(viewport.id)}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "border-black bg-black text-white"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {viewport.label}
+                </button>
+              );
+            })}
+            <button
+              onClick={refreshPreviewFrame}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+        </div>
 
         {activeTab === "content" && (
           <div className="w-full">
@@ -1803,32 +1893,133 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <div className="flex-1 bg-gray-100 h-screen flex flex-col relative overflow-hidden hidden md:flex">
-        <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm z-10 shrink-0">
-          <div className="flex items-center gap-2">
-            <MonitorPlay className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">
-              Live Draft Preview <span className="text-gray-400 font-normal">({previewPath})</span>
-            </span>
+      {!isPreviewFullscreen && (
+        <div className="hidden flex-1 bg-gray-100 xl:flex xl:h-screen xl:flex-col xl:overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white p-3 shadow-sm z-10 shrink-0">
+            <div className="flex items-center gap-2">
+              <MonitorPlay className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">
+                Live Draft Preview <span className="text-gray-400 font-normal">({previewPath})</span>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {PREVIEW_VIEWPORTS.map((viewport) => {
+                const Icon = viewport.icon;
+                const isActive = previewViewport === viewport.id;
+                return (
+                  <button
+                    key={viewport.id}
+                    onClick={() => setPreviewViewport(viewport.id)}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                      isActive
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {viewport.label}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setIsPreviewFullscreen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              >
+                <Maximize2 className="h-4 w-4" />
+                Fullscreen
+              </button>
+              <button
+                onClick={refreshPreviewFrame}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Hard Refresh
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => {
-              if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
-            }}
-            className="text-xs bg-gray-50 text-gray-600 border px-3 py-1.5 rounded shadow-sm hover:bg-gray-100 transition-colors"
-          >
-            Hard Refresh Frame
-          </button>
+          <div className="flex-1 overflow-auto bg-gray-200/60 p-4 lg:p-6">
+            <div className={`mx-auto h-full transition-all duration-200 ${previewViewportConfig.frameClassName}`}>
+              <div
+                className={`h-full min-h-[720px] overflow-hidden border border-gray-300 bg-white shadow-2xl ${
+                  previewViewport === "desktop" ? "rounded-2xl" : "rounded-[28px]"
+                }`}
+              >
+                <iframe
+                  key={previewPath}
+                  ref={iframeRef}
+                  src={previewPath}
+                  onLoad={syncPreviewFrame}
+                  className="h-full w-full border-none bg-white"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex-1 relative bg-white">
-          <iframe
-            key={previewPath}
-            ref={iframeRef}
-            src={previewPath}
-            className="absolute inset-0 w-full h-full border-none shadow-inner"
-          />
+      )}
+
+      {isPreviewFullscreen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-gray-950/90 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/70 px-4 py-3 text-white">
+            <div className="flex items-center gap-2">
+              <MonitorPlay className="h-4 w-4 text-white/70" />
+              <span className="text-sm font-medium">
+                Fullscreen Preview <span className="text-white/60">({previewPath})</span>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {PREVIEW_VIEWPORTS.map((viewport) => {
+                const Icon = viewport.icon;
+                const isActive = previewViewport === viewport.id;
+                return (
+                  <button
+                    key={viewport.id}
+                    onClick={() => setPreviewViewport(viewport.id)}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "border-white bg-white text-black"
+                        : "border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {viewport.label}
+                  </button>
+                );
+              })}
+              <button
+                onClick={refreshPreviewFrame}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Refresh
+              </button>
+              <button
+                onClick={() => setIsPreviewFullscreen(false)}
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-black hover:bg-gray-100"
+              >
+                <Minimize2 className="h-4 w-4" />
+                Exit Fullscreen
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-6">
+            <div className={`mx-auto h-full transition-all duration-200 ${previewViewportConfig.frameClassName}`}>
+              <div
+                className={`h-full min-h-[calc(100vh-120px)] overflow-hidden border border-white/15 bg-white shadow-2xl ${
+                  previewViewport === "desktop" ? "rounded-3xl" : "rounded-[32px]"
+                }`}
+              >
+                <iframe
+                  key={`${previewPath}-fullscreen`}
+                  ref={iframeRef}
+                  src={previewPath}
+                  onLoad={syncPreviewFrame}
+                  className="h-full w-full border-none bg-white"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
