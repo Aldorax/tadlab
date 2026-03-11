@@ -1,625 +1,1587 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-    Upload, Plus, Calendar, Image as ImageIcon,
-    FileText, Settings, LogOut, BookOpen, MonitorPlay
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  ClipboardCheck,
+  Copy,
+  FileText,
+  Image as ImageIcon,
+  LogOut,
+  MonitorPlay,
+  RefreshCcw,
+  Settings,
+  Shield,
+  Upload,
+  UserPlus,
+  Users,
+  XCircle,
 } from "lucide-react";
-import { createEvent, getEvents, deleteEvent } from "@/app/actions/events";
+import { createEvent, deleteEvent, getEvents } from "@/app/actions/events";
 import { getPageContent, updatePageContent } from "@/app/actions/content";
-import { createProject, getProjects, deleteProject } from "@/app/actions/projects";
-import { createBlogPost, getBlogPosts, deleteBlogPost } from "@/app/actions/blog";
-import { useRef } from "react";
+import { createProject, deleteProject, getProjects } from "@/app/actions/projects";
+import { createBlogPost, deleteBlogPost, getBlogPosts } from "@/app/actions/blog";
+import {
+  MASTER_ADMIN_ROLE,
+  MID_LEVEL_ADMIN_ROLE,
+  ROLE_LABELS,
+  getInvitableRoles,
+  isMasterAdminRole,
+  requiresApproval,
+} from "@/lib/admin-roles";
+
+type DashboardUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  active: boolean;
+};
+
+type InviteRecord = {
+  id: string;
+  email: string;
+  role: string;
+  used: boolean;
+  createdAt: string;
+  expiresAt: string;
+  invitedBy?: { name: string; email: string };
+};
+
+type ManagedUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  active: boolean;
+  createdAt: string;
+  invitedBy?: { name: string; email: string };
+};
+
+type PendingChangeRecord = {
+  id: string;
+  type: "CREATE" | "UPDATE" | "DELETE";
+  resource: "event" | "project" | "blog" | "content";
+  resourceId?: string | null;
+  payload: Record<string, unknown>;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  note?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+  submittedBy: { name: string; email: string; role: string };
+  reviewedBy?: { name: string; email: string } | null;
+};
+
+type PendingResult = {
+  pending: true;
+  message: string;
+};
+
+function isPendingResult(value: unknown): value is PendingResult {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "pending" in value &&
+      "message" in value,
+  );
+}
+
+function formatDate(value: string | Date | null | undefined) {
+  if (!value) return "Not available";
+  return new Date(value).toLocaleString();
+}
+
+function getChangeSummary(change: PendingChangeRecord) {
+  if (change.resource === "content") {
+    return `Page: ${String(change.payload.pageId ?? "homepage")}`;
+  }
+
+  if (change.resource === "blog") {
+    return String(change.payload.title ?? change.payload.slug ?? change.resourceId ?? "Untitled blog");
+  }
+
+  return String(change.payload.title ?? change.resourceId ?? `Pending ${change.resource}`);
+}
+
+function getStatusClasses(status: PendingChangeRecord["status"]) {
+  if (status === "APPROVED") {
+    return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+  }
+
+  if (status === "REJECTED") {
+    return "bg-red-50 text-red-700 border border-red-200";
+  }
+
+  return "bg-amber-50 text-amber-700 border border-amber-200";
+}
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState("content");
+  const [activeTab, setActiveTab] = useState("content");
+  const [currentUser, setCurrentUser] = useState<DashboardUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-    // Events State
-    const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<PendingChangeRecord[]>([]);
+  const [invites, setInvites] = useState<InviteRecord[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
 
-    // Projects State
-    const [projects, setProjects] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [latestInviteLink, setLatestInviteLink] = useState("");
 
-    // Blogs State
-    const [blogs, setBlogs] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [link, setLink] = useState("");
+  const [tags, setTags] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [excerpt, setExcerpt] = useState("");
+  const [content, setContent] = useState("");
+  const [author, setAuthor] = useState("");
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [published, setPublished] = useState(false);
 
-    // Form State (Shared between Event and Project for simplicity)
-    const [title, setTitle] = useState("");
-    const [date, setDate] = useState("");
-    const [location, setLocation] = useState("");
-    const [description, setDescription] = useState("");
-    const [link, setLink] = useState("");
-    const [tags, setTags] = useState("");
-    const [file, setFile] = useState<File | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<string>(MID_LEVEL_ADMIN_ROLE);
 
-    // Additional Form State for Blogs
-    const [slug, setSlug] = useState("");
-    const [excerpt, setExcerpt] = useState("");
-    const [content, setContent] = useState("");
-    const [author, setAuthor] = useState("");
-    const [metaTitle, setMetaTitle] = useState("");
-    const [metaDescription, setMetaDescription] = useState("");
-    const [published, setPublished] = useState(false);
+  const [pageId, setPageId] = useState("homepage");
+  const [contentData, setContentData] = useState({
+    heroTitle: "",
+    heroSub: "",
+    heroImage: "",
+  });
 
-    // Content State
-    const [pageId, setPageId] = useState("homepage");
-    const [contentData, setContentData] = useState<any>({
-        heroTitle: "",
-        heroSub: "",
-        heroImage: ""
-    });
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    const iframeRef = useRef<HTMLIFrameElement>(null);
+  const approvalRequired = currentUser ? requiresApproval(currentUser.role) : true;
+  const canManageUsers = currentUser ? isMasterAdminRole(currentUser.role) : false;
+  const invitableRoles = currentUser ? getInvitableRoles(currentUser.role) : [MID_LEVEL_ADMIN_ROLE];
+  const canAccessControlCenter = currentUser ? currentUser.role !== "EDITOR" : false;
 
-    const getPreviewPath = () => {
-        if (activeTab === "events") return "/events";
-        if (activeTab === "projects") return "/projects";
-        if (activeTab === "blogs") return "/blog";
-        if (activeTab === "content" && pageId === "about") return "/about-us";
-        if (activeTab === "content" && pageId === "research") return "/research";
-        return "/";
-    };
+  const getPreviewPath = () => {
+    if (activeTab === "events") return "/events";
+    if (activeTab === "projects") return "/projects";
+    if (activeTab === "blogs") return "/blog";
+    if (activeTab === "content" && pageId === "about") return "/about-us";
+    if (activeTab === "content" && pageId === "research") return "/research";
+    return "/";
+  };
 
-    const previewPath = getPreviewPath();
+  const previewPath = getPreviewPath();
 
-    useEffect(() => {
-        if (activeTab === "events") loadEvents();
-        if (activeTab === "projects") loadProjects();
-        if (activeTab === "blogs") loadBlogs();
-    }, [activeTab]);
+  const showSuccess = (message: string) => {
+    setStatusMessage(message);
+    setErrorMessage("");
+  };
 
-    useEffect(() => {
-        if (activeTab === "content") loadContent();
-    }, [activeTab, pageId]);
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setStatusMessage("");
+  };
 
-    const loadEvents = async () => setEvents(await getEvents());
-    const loadProjects = async () => setProjects(await getProjects());
-    const loadBlogs = async () => setBlogs(await getBlogPosts());
+  const resetForm = () => {
+    setTitle("");
+    setDate("");
+    setLocation("");
+    setDescription("");
+    setLink("");
+    setTags("");
+    setFile(null);
+    setSlug("");
+    setExcerpt("");
+    setContent("");
+    setAuthor("");
+    setMetaTitle("");
+    setMetaDescription("");
+    setPublished(false);
+  };
 
-    const loadContent = async () => {
-        const data = await getPageContent(pageId);
-        if (data) {
-            setContentData({
-                heroTitle: data.heroTitle || "",
-                heroSub: data.heroSub || "",
-                heroImage: data.heroImage || ""
-            });
-        } else {
-            setContentData({ heroTitle: "", heroSub: "", heroImage: "" });
+  const loadEvents = async () => setEvents(await getEvents());
+  const loadProjects = async () => setProjects(await getProjects());
+  const loadBlogs = async () => setBlogs(await getBlogPosts());
+
+  const loadContent = async () => {
+    const data = await getPageContent(pageId);
+    if (data) {
+      setContentData({
+        heroTitle: data.heroTitle || "",
+        heroSub: data.heroSub || "",
+        heroImage: data.heroImage || "",
+      });
+      return;
+    }
+
+    setContentData({ heroTitle: "", heroSub: "", heroImage: "" });
+  };
+
+  const loadPendingChanges = async () => {
+    const res = await fetch("/api/admin/pending");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to fetch change requests.");
+    }
+    setPendingChanges(data.changes || []);
+  };
+
+  const loadInvites = async () => {
+    const res = await fetch("/api/admin/invite");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to fetch invites.");
+    }
+    setInvites(data.invites || []);
+  };
+
+  const loadUsers = async () => {
+    const res = await fetch("/api/admin/users");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to fetch users.");
+    }
+    setUsers(data.users || []);
+  };
+
+  const refreshControlData = async () => {
+    await Promise.all([
+      loadPendingChanges(),
+      loadInvites(),
+      ...(canManageUsers ? [loadUsers()] : []),
+    ]);
+  };
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function authenticate() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          window.location.href = "/admin";
+          return;
         }
-    };
 
-    useEffect(() => {
-        if (activeTab === 'content' && iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage({
-                type: 'PREVIEW_CONTENT',
-                pageId,
-                payload: contentData
-            }, "*");
+        const data = await res.json();
+        if (!data.user) {
+          window.location.href = "/admin";
+          return;
         }
-    }, [contentData, pageId, activeTab]);
 
-    useEffect(() => {
-        if (activeTab === 'projects' && iframeRef.current?.contentWindow) {
-            const imageUrl = file ? URL.createObjectURL(file) : "/images/about/1.jpg";
-            iframeRef.current.contentWindow.postMessage({
-                type: 'PREVIEW_PROJECT',
-                payload: {
-                    title: title || "New Project Title",
-                    description: description || "Project description...",
-                    image: imageUrl,
-                    tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["Tag 1", "Tag 2"]
-                }
-            }, "*");
+        if (!ignore) {
+          setCurrentUser(data.user);
+          setInviteRole(MID_LEVEL_ADMIN_ROLE);
         }
-    }, [title, description, file, tags, activeTab]);
-
-    useEffect(() => {
-        if (activeTab === 'events' && iframeRef.current?.contentWindow) {
-            const imageUrl = file ? URL.createObjectURL(file) : "/events/africa-after-davos.jpeg";
-            iframeRef.current.contentWindow.postMessage({
-                type: 'PREVIEW_EVENT',
-                payload: {
-                    title: title || "New Event Title",
-                    date: date || "Date/Time Details Here",
-                    location: location || "Event Location",
-                    shortDescription: description || "",
-                    fullDescription: description || "",
-                    image: imageUrl,
-                    link: link || "#",
-                    tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : ["Event"]
-                }
-            }, "*");
+      } catch {
+        if (!ignore) {
+          showError("Failed to load your admin session.");
         }
-    }, [title, date, location, description, link, file, tags, activeTab]);
-
-
-    const handleContentSubmit = async () => {
-        setIsSubmitting(true);
-        try {
-            await updatePageContent(pageId, contentData);
-            alert("Content updated successfully!");
-        } catch (error) {
-            console.error(error);
-            alert("Failed to update content");
-        } finally {
-            setIsSubmitting(false);
+      } finally {
+        if (!ignore) {
+          setAuthLoading(false);
         }
+      }
+    }
+
+    void authenticate();
+
+    return () => {
+      ignore = true;
     };
+  }, []);
 
-    const uploadImage = async (file: File) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!uploadRes.ok) throw new Error("Failed to upload image");
-        const data = await uploadRes.json();
-        return data.url;
-    };
+  useEffect(() => {
+    if (!currentUser) return;
 
-    const handleBlogSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            let imageUrl = null;
-            if (file) imageUrl = await uploadImage(file);
+    if (activeTab === "settings" && !canAccessControlCenter) {
+      setActiveTab("approvals");
+      return;
+    }
 
-            await createBlogPost({
-                title, slug, excerpt, content, image: imageUrl, author, metaTitle, metaDescription, published,
-                tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-            });
+    if (activeTab === "events") {
+      void loadEvents();
+    }
+    if (activeTab === "projects") {
+      void loadProjects();
+    }
+    if (activeTab === "blogs") {
+      void loadBlogs();
+    }
+    if (activeTab === "content") {
+      void loadContent();
+    }
+    if (activeTab === "approvals" || activeTab === "settings") {
+      void refreshControlData().catch((error: Error) => {
+        showError(error.message);
+      });
+    }
+  }, [activeTab, currentUser, pageId, canManageUsers, canAccessControlCenter]);
 
-            alert("Blog created successfully!");
-            resetForm();
-            loadBlogs();
-        } catch (error) {
-            console.error(error);
-            alert("Failed to create blog");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  useEffect(() => {
+    if (activeTab === "content" && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: "PREVIEW_CONTENT",
+          pageId,
+          payload: contentData,
+        },
+        "*",
+      );
+    }
+  }, [contentData, pageId, activeTab]);
 
-    const handleEventSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            let imageUrl = "/events/africa-after-davos.jpeg";
-            if (file) imageUrl = await uploadImage(file);
+  useEffect(() => {
+    if (activeTab === "projects" && iframeRef.current?.contentWindow) {
+      const imageUrl = file ? URL.createObjectURL(file) : "/images/about/1.jpg";
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: "PREVIEW_PROJECT",
+          payload: {
+            title: title || "New Project Title",
+            description: description || "Project description...",
+            image: imageUrl,
+            tags: tags ? tags.split(",").map((tag) => tag.trim()).filter(Boolean) : ["Tag 1", "Tag 2"],
+          },
+        },
+        "*",
+      );
 
-            await createEvent({
-                title, date, location, link, fullDescription: description,
-                image: imageUrl, tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-            });
+      return () => {
+        if (file) URL.revokeObjectURL(imageUrl);
+      };
+    }
+  }, [title, description, file, tags, activeTab]);
 
-            alert("Event created successfully!");
-            resetForm();
-            loadEvents();
-        } catch (error) {
-            console.error(error);
-            alert("Failed to create event");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  useEffect(() => {
+    if (activeTab === "events" && iframeRef.current?.contentWindow) {
+      const imageUrl = file ? URL.createObjectURL(file) : "/events/africa-after-davos.jpeg";
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: "PREVIEW_EVENT",
+          payload: {
+            title: title || "New Event Title",
+            date: date || "Date/Time Details Here",
+            location: location || "Event Location",
+            shortDescription: description || "",
+            fullDescription: description || "",
+            image: imageUrl,
+            link: link || "#",
+            tags: tags ? tags.split(",").map((tag) => tag.trim()).filter(Boolean) : ["Event"],
+          },
+        },
+        "*",
+      );
 
-    const handleProjectSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            let imageUrl = "/images/about/1.jpg";
-            if (file) imageUrl = await uploadImage(file);
+      return () => {
+        if (file) URL.revokeObjectURL(imageUrl);
+      };
+    }
+  }, [title, date, location, description, link, file, tags, activeTab]);
 
-            await createProject({
-                title, description, image: imageUrl,
-                tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-            });
+  const uploadImage = async (asset: File) => {
+    const formData = new FormData();
+    formData.append("file", asset);
 
-            alert("Project created successfully!");
-            resetForm();
-            loadProjects();
-        } catch (error) {
-            console.error(error);
-            alert("Failed to create project");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await uploadRes.json();
 
-    const resetForm = () => {
-        setTitle(""); setDate(""); setLocation(""); setDescription(""); setLink(""); setTags(""); setFile(null);
-        setSlug(""); setExcerpt(""); setContent(""); setAuthor(""); setMetaTitle(""); setMetaDescription(""); setPublished(false);
-    };
+    if (!uploadRes.ok) {
+      throw new Error(data.error || "Failed to upload image.");
+    }
 
-    const handleDeleteEvent = async (id: string) => {
-        if (confirm("Are you sure you want to delete this event?")) {
-            await deleteEvent(id);
-            loadEvents();
-        }
-    };
+    return data.url as string;
+  };
 
-    const handleDeleteProject = async (id: string) => {
-        if (confirm("Are you sure you want to delete this project?")) {
-            await deleteProject(id);
-            loadProjects();
-        }
-    };
+  const handleContentSubmit = async () => {
+    setIsSubmitting(true);
 
-    const handleDeleteBlog = async (id: string) => {
-        if (confirm("Are you sure you want to delete this blog post?")) {
-            await deleteBlogPost(id);
-            loadBlogs();
-        }
-    };
+    try {
+      const result = await updatePageContent(pageId, contentData);
 
-    return (
-        <div className="min-h-screen bg-gray-50 flex">
-            {/* Sidebar */}
-            <div className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col z-10">
-                <div className="p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">TADLab Admin</h2>
-                </div>
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Content published successfully.");
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to save content.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <button
-                        onClick={() => setActiveTab("content")}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "content" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <FileText className="w-5 h-5" /> Pages Content
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab("projects"); resetForm(); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "projects" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <BookOpen className="w-5 h-5" /> Projects
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab("blogs"); resetForm(); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "blogs" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <FileText className="w-5 h-5" /> Blogs
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab("events"); resetForm(); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "events" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <Calendar className="w-5 h-5" /> Events
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("settings")}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === "settings" ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                        <Settings className="w-5 h-5" /> Settings
-                    </button>
-                </nav>
+  const handleBlogSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setIsSubmitting(true);
 
-                <div className="p-4 border-t border-gray-200">
-                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                        <LogOut className="w-5 h-5" /> Sign Out
-                    </button>
-                </div>
-            </div>
+    try {
+      let imageUrl: string | null = null;
+      if (file) imageUrl = await uploadImage(file);
 
-            {/* Forms Content */}
-            <div className="w-[500px] xl:w-[600px] shrink-0 p-8 h-screen overflow-y-auto border-r border-gray-200 bg-white">
-                {activeTab === "content" && (
-                    <div className="w-full">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Manager</h1>
-                                <p className="text-gray-500">Edit text and images across website pages.</p>
-                            </div>
-                            <select
-                                value={pageId}
-                                onChange={(e) => setPageId(e.target.value)}
-                                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black bg-white"
-                            >
-                                <option value="homepage">Homepage</option>
-                                <option value="about">About Us</option>
-                                <option value="research">Research</option>
-                            </select>
-                        </div>
+      const result = await createBlogPost({
+        title,
+        slug,
+        excerpt,
+        content,
+        image: imageUrl,
+        author,
+        metaTitle,
+        metaDescription,
+        published,
+        tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="border-b border-gray-200 bg-gray-50 p-4">
-                                <h3 className="font-semibold text-gray-700">Hero Section Content</h3>
-                            </div>
-                            <div className="p-6 space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Main Headline</label>
-                                    <input type="text" value={contentData.heroTitle} onChange={(e) => setContentData({ ...contentData, heroTitle: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Subheadline / Intro text</label>
-                                    <textarea rows={6} value={contentData.heroSub} onChange={(e) => setContentData({ ...contentData, heroSub: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Hero Image URL</label>
-                                    <input type="url" value={contentData.heroImage} onChange={(e) => setContentData({ ...contentData, heroImage: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black" />
-                                </div>
-                                <div className="pt-4 border-t border-gray-100 flex justify-end">
-                                    <button onClick={handleContentSubmit} disabled={isSubmitting} className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400">
-                                        {isSubmitting ? "Publishing..." : "Publish Changes"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+      resetForm();
 
-                {activeTab === "projects" && (
-                    <div className="w-full">
-                        <div className="flex justify-between items-center mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900">Projects Management</h1>
-                        </div>
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Blog post published successfully.");
+        await loadBlogs();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to save blog post.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                        <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
-                            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                                <Upload className="w-5 h-5 text-gray-500" /> Create New Project
-                            </h2>
-                            <form className="space-y-6" onSubmit={handleProjectSubmit}>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Project Title</label>
-                                        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                                        <input type="text" placeholder="Tech, Political Change" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Description</label>
-                                        <textarea rows={4} required value={description} onChange={(e) => setDescription(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Project Image</label>
-                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
-                                        <div className="space-y-1 text-center">
-                                            <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                            <div className="flex text-sm text-gray-600 justify-center">
-                                                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none p-1">
-                                                    <span>Upload a file</span>
-                                                    <input type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} accept="image/*" />
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400">
-                                        {isSubmitting ? "Saving..." : "Save Project"}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+  const handleEventSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setIsSubmitting(true);
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="font-semibold text-gray-900 mb-4">Active Projects (Database)</h3>
-                            <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
-                                {projects.length === 0 ? (
-                                    <div className="p-4 text-center text-gray-500 text-sm">No projects found. Create one above!</div>
-                                ) : (
-                                    projects.map((project) => (
-                                        <div key={project.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                            <div>
-                                                <div className="font-medium text-gray-900">{project.title}</div>
-                                                <div className="text-sm text-gray-500 flex gap-1 mt-1">
-                                                    {project.tags.map((t: string) => <span key={t} className="bg-gray-200 px-2 py-0.5 rounded text-xs">{t}</span>)}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleDeleteProject(project.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+    try {
+      let imageUrl = "/events/africa-after-davos.jpeg";
+      if (file) imageUrl = await uploadImage(file);
 
-                {activeTab === "blogs" && (
-                    <div className="w-full">
-                        <div className="flex justify-between items-center mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900">Blogs Management</h1>
-                        </div>
+      const result = await createEvent({
+        title,
+        date,
+        location,
+        link,
+        fullDescription: description,
+        image: imageUrl,
+        tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
 
-                        <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
-                            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                                <Upload className="w-5 h-5 text-gray-500" /> Create New Blog Post
-                            </h2>
-                            <form className="space-y-6" onSubmit={handleBlogSubmit}>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="col-span-2 md:col-span-1">
-                                        <label className="text-sm font-medium text-gray-700">Post Title</label>
-                                        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2 md:col-span-1">
-                                        <label className="text-sm font-medium text-gray-700">Slug URL (e.g. my-post-title)</label>
-                                        <input type="text" required value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'))} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Excerpt (Short description)</label>
-                                        <textarea rows={2} required value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Content (Markdown or Text)</label>
-                                        <textarea rows={8} required value={content} onChange={(e) => setContent(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2 md:col-span-1">
-                                        <label className="text-sm font-medium text-gray-700">Author</label>
-                                        <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2 md:col-span-1">
-                                        <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                                        <input type="text" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <h3 className="text-md font-semibold mt-4 text-gray-800">SEO Settings</h3>
-                                        <hr className="mb-4" />
-                                        <label className="text-sm font-medium text-gray-700">Meta Title</label>
-                                        <input type="text" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black mb-4" />
-                                        <label className="text-sm font-medium text-gray-700">Meta Description</label>
-                                        <textarea rows={2} value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2 flex items-center mt-2">
-                                        <input type="checkbox" id="published" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                                        <label htmlFor="published" className="ml-2 block text-sm text-gray-900"> Publish immediately </label>
-                                    </div>
-                                </div>
-                                <div className="mt-6">
-                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Cover Image</label>
-                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
-                                        <div className="space-y-1 text-center">
-                                            <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                            <div className="flex text-sm text-gray-600 justify-center">
-                                                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none p-1">
-                                                    <span>Upload a file</span>
-                                                    <input type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} accept="image/*" />
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-                                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400">
-                                        {isSubmitting ? "Saving..." : "Save Blog Post"}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+      resetForm();
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="font-semibold text-gray-900 mb-4">Active Blogs (Database)</h3>
-                            <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
-                                {blogs.length === 0 ? (
-                                    <div className="p-4 text-center text-gray-500 text-sm">No blogs found. Create one above!</div>
-                                ) : (
-                                    blogs.map((blog) => (
-                                        <div key={blog.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                            <div>
-                                                <div className="font-medium text-gray-900">{blog.title}</div>
-                                                <div className="text-sm text-gray-500 flex gap-1 mt-1">
-                                                    <span className={`px-2 py-0.5 rounded text-xs ${blog.published ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-800'}`}>{blog.published ? 'Published' : 'Draft'}</span>
-                                                    {blog.tags.map((t: string) => <span key={t} className="bg-gray-200 px-2 py-0.5 rounded text-xs">{t}</span>)}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleDeleteBlog(blog.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Event published successfully.");
+        await loadEvents();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to save event.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                {activeTab === "events" && (
-                    <div className="w-full">
-                        <div className="flex justify-between items-center mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
-                        </div>
+  const handleProjectSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setIsSubmitting(true);
 
-                        <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
-                            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                                <Upload className="w-5 h-5 text-gray-500" /> Upload New Event / Flier
-                            </h2>
-                            <form className="space-y-6" onSubmit={handleEventSubmit}>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-700">Event Title</label>
-                                        <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-700">Date</label>
-                                        <input type="text" placeholder="e.g. Friday, March 6, 2026" required value={date} onChange={(e) => setDate(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-700">Location</label>
-                                        <input type="text" placeholder="Zoom Online Webinar" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-700">Registration Link</label>
-                                        <input type="url" required value={link} onChange={(e) => setLink(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                                        <input type="text" placeholder="Webinar, Democracy" value={tags} onChange={(e) => setTags(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="text-sm font-medium text-gray-700">Full Description</label>
-                                        <textarea rows={4} required value={description} onChange={(e) => setDescription(e.target.value)} className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-sm font-medium text-gray-700 mb-2 block">Event Flier</label>
-                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
-                                        <div className="space-y-1 text-center">
-                                            <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                            <div className="flex text-sm text-gray-600 justify-center">
-                                                <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none p-1">
-                                                    <span>Upload a file</span>
-                                                    <input type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} accept="image/*" />
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                    <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400">
-                                        {isSubmitting ? "Saving..." : "Save Event"}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+    try {
+      let imageUrl = "/images/about/1.jpg";
+      if (file) imageUrl = await uploadImage(file);
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="font-semibold text-gray-900 mb-4">Active Events (Database)</h3>
-                            <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
-                                {events.length === 0 ? (
-                                    <div className="p-4 text-center text-gray-500 text-sm">No events found. Create one above!</div>
-                                ) : (
-                                    events.map((event) => (
-                                        <div key={event.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                            <div>
-                                                <div className="font-medium text-gray-900">{event.title}</div>
-                                                <div className="text-sm text-gray-500">{event.date}</div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleDeleteEvent(event.id)} className="text-sm font-medium text-red-600 hover:text-red-800">Delete</button>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
+      const result = await createProject({
+        title,
+        description,
+        image: imageUrl,
+        tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
 
-            {/* Live Preview Panel */}
-            <div className="flex-1 bg-gray-100 h-screen flex flex-col relative overflow-hidden hidden md:flex">
-                <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm z-10 shrink-0">
-                    <div className="flex items-center gap-2">
-                        <MonitorPlay className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Live Draft Preview <span className="text-gray-400 font-normal">({previewPath})</span></span>
-                    </div>
-                    <button onClick={() => {
-                        if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
-                    }} className="text-xs bg-gray-50 text-gray-600 border px-3 py-1.5 rounded shadow-sm hover:bg-gray-100 transition-colors">
-                        Hard Refresh Frame
-                    </button>
-                </div>
-                <div className="flex-1 relative bg-white">
-                    <iframe key={previewPath} ref={iframeRef} src={previewPath} className="absolute inset-0 w-full h-full border-none shadow-inner" />
-                </div>
-            </div>
-        </div>
+      resetForm();
+
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Project published successfully.");
+        await loadProjects();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to save project.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm("Delete this event?")) return;
+
+    try {
+      const result = await deleteEvent(id);
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Event deleted successfully.");
+        await loadEvents();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to remove event.");
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!confirm("Delete this project?")) return;
+
+    try {
+      const result = await deleteProject(id);
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Project deleted successfully.");
+        await loadProjects();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to remove project.");
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!confirm("Delete this blog post?")) return;
+
+    try {
+      const result = await deleteBlogPost(id);
+      if (isPendingResult(result)) {
+        showSuccess(result.message);
+        await loadPendingChanges();
+      } else {
+        showSuccess("Blog post deleted successfully.");
+        await loadBlogs();
+      }
+    } catch (error) {
+      console.error(error);
+      showError("Failed to remove blog post.");
+    }
+  };
+
+  const handleSignOut = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/admin";
+  };
+
+  const handleInviteSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setIsCreatingInvite(true);
+
+    try {
+      const res = await fetch("/api/admin/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create invitation.");
+      }
+
+      setLatestInviteLink(data.invite.registrationUrl);
+      setInviteEmail("");
+      showSuccess(`Invitation created for ${data.invite.email}.`);
+      await loadInvites();
+    } catch (error) {
+      console.error(error);
+      showError(error instanceof Error ? error.message : "Failed to create invitation.");
+    } finally {
+      setIsCreatingInvite(false);
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!latestInviteLink) return;
+
+    await navigator.clipboard.writeText(latestInviteLink);
+    showSuccess("Invitation link copied.");
+  };
+
+  const updateManagedUser = async (id: string, payload: { role?: string; active?: boolean }) => {
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update account.");
+      }
+
+      showSuccess(`Updated ${data.user.name}.`);
+      await loadUsers();
+    } catch (error) {
+      console.error(error);
+      showError(error instanceof Error ? error.message : "Failed to update account.");
+    }
+  };
+
+  const handlePendingReview = async (changeId: string, action: "approve" | "reject") => {
+    const note = window.prompt(
+      action === "approve" ? "Optional approval note" : "Optional rejection note",
     );
+
+    try {
+      const res = await fetch(`/api/admin/pending/${changeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, note }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to review change.");
+      }
+
+      showSuccess(`Change ${action === "approve" ? "approved" : "rejected"}.`);
+      await loadPendingChanges();
+      if (activeTab === "events") await loadEvents();
+      if (activeTab === "projects") await loadProjects();
+      if (activeTab === "blogs") await loadBlogs();
+      if (activeTab === "content") await loadContent();
+    } catch (error) {
+      console.error(error);
+      showError(error instanceof Error ? error.message : "Failed to review change.");
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">Loading admin dashboard...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <div className="w-72 shrink-0 bg-white border-r border-gray-200 flex flex-col z-10">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-black text-white flex items-center justify-center">
+              <Shield className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">TADLab Admin</h2>
+              <p className="text-sm text-gray-500">Protected content backend</p>
+            </div>
+          </div>
+        </div>
+
+        {currentUser && (
+          <div className="px-6 py-5 border-b border-gray-200 bg-gray-50">
+            <p className="text-sm font-semibold text-gray-900">{currentUser.name}</p>
+            <p className="text-sm text-gray-500 break-all">{currentUser.email}</p>
+            <span className="mt-3 inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+              {ROLE_LABELS[currentUser.role] || currentUser.role}
+            </span>
+          </div>
+        )}
+
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {[
+            { id: "content", label: "Pages Content", icon: FileText },
+            { id: "projects", label: "Projects", icon: BookOpen },
+            { id: "blogs", label: "Blogs", icon: FileText },
+            { id: "events", label: "Events", icon: Calendar },
+            { id: "approvals", label: "Approvals", icon: ClipboardCheck },
+            ...(canAccessControlCenter
+              ? [{ id: "settings", label: "Control Center", icon: Settings }]
+              : []),
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setStatusMessage("");
+                  setErrorMessage("");
+                  if (item.id !== activeTab) resetForm();
+                  setActiveTab(item.id);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === item.id
+                    ? "bg-black text-white"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      <div className="w-[520px] xl:w-[640px] shrink-0 p-8 h-screen overflow-y-auto border-r border-gray-200 bg-white">
+        {(statusMessage || errorMessage) && (
+          <div className="mb-6 space-y-3">
+            {statusMessage && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {statusMessage}
+              </div>
+            )}
+            {errorMessage && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "content" && (
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Manager</h1>
+                <p className="text-gray-500">
+                  {approvalRequired
+                    ? "Your page edits will be queued for master approval."
+                    : "Master control publishes page changes directly."}
+                </p>
+              </div>
+              <select
+                value={pageId}
+                onChange={(event) => setPageId(event.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black bg-white"
+              >
+                <option value="homepage">Homepage</option>
+                <option value="about">About Us</option>
+                <option value="research">Research</option>
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="border-b border-gray-200 bg-gray-50 p-4">
+                <h3 className="font-semibold text-gray-700">Hero Section Content</h3>
+              </div>
+              <div className="p-6 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Main Headline</label>
+                  <input
+                    type="text"
+                    value={contentData.heroTitle}
+                    onChange={(event) => setContentData({ ...contentData, heroTitle: event.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subheadline / Intro text</label>
+                  <textarea
+                    rows={6}
+                    value={contentData.heroSub}
+                    onChange={(event) => setContentData({ ...contentData, heroSub: event.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Hero Image URL</label>
+                  <input
+                    type="url"
+                    value={contentData.heroImage}
+                    onChange={(event) => setContentData({ ...contentData, heroImage: event.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
+                  />
+                </div>
+                <div className="pt-4 border-t border-gray-100 flex justify-end">
+                  <button
+                    onClick={handleContentSubmit}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : approvalRequired
+                        ? "Submit for Approval"
+                        : "Publish Changes"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "projects" && (
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Projects Management</h1>
+                <p className="text-gray-500 mt-2">
+                  {approvalRequired
+                    ? "Project changes require master control approval."
+                    : "Master control can publish projects immediately."}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
+              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-gray-500" />
+                Create New Project
+              </h2>
+              <form className="space-y-6" onSubmit={handleProjectSubmit}>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Project Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      placeholder="Tech, Political Change"
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Description</label>
+                    <textarea
+                      rows={4}
+                      required
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Project Image</label>
+                  <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
+                    <div className="space-y-1 text-center">
+                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600 justify-center">
+                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-black hover:text-gray-700 focus-within:outline-none p-1">
+                          <span>Upload a file</span>
+                          <input
+                            type="file"
+                            className="sr-only"
+                            onChange={(event) => setFile(event.target.files?.[0] || null)}
+                            accept="image/*"
+                          />
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400"
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : approvalRequired
+                        ? "Submit Project"
+                        : "Publish Project"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Live Projects</h3>
+              <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
+                {projects.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">No projects have been published yet.</div>
+                ) : (
+                  projects.map((project) => (
+                    <div key={project.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div>
+                        <div className="font-medium text-gray-900">{project.title}</div>
+                        <div className="text-sm text-gray-500 flex gap-1 mt-1 flex-wrap">
+                          {project.tags.map((tag: string) => (
+                            <span key={tag} className="bg-gray-200 px-2 py-0.5 rounded text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                      >
+                        {approvalRequired ? "Request Delete" : "Delete"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "blogs" && (
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Blogs Management</h1>
+                <p className="text-gray-500 mt-2">
+                  {approvalRequired
+                    ? "Blog publishing is routed through master approval."
+                    : "Master control publishes blogs directly."}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
+              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-gray-500" />
+                Create New Blog Post
+              </h2>
+              <form className="space-y-6" onSubmit={handleBlogSubmit}>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="text-sm font-medium text-gray-700">Post Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="text-sm font-medium text-gray-700">Slug URL (e.g. my-post-title)</label>
+                    <input
+                      type="text"
+                      required
+                      value={slug}
+                      onChange={(event) => setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Excerpt (Short description)</label>
+                    <textarea
+                      rows={2}
+                      required
+                      value={excerpt}
+                      onChange={(event) => setExcerpt(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Content (Markdown or Text)</label>
+                    <textarea
+                      rows={8}
+                      required
+                      value={content}
+                      onChange={(event) => setContent(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="text-sm font-medium text-gray-700">Author</label>
+                    <input
+                      type="text"
+                      value={author}
+                      onChange={(event) => setAuthor(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <h3 className="text-md font-semibold mt-4 text-gray-800">SEO Settings</h3>
+                    <hr className="mb-4" />
+                    <label className="text-sm font-medium text-gray-700">Meta Title</label>
+                    <input
+                      type="text"
+                      value={metaTitle}
+                      onChange={(event) => setMetaTitle(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black mb-4"
+                    />
+                    <label className="text-sm font-medium text-gray-700">Meta Description</label>
+                    <textarea
+                      rows={2}
+                      value={metaDescription}
+                      onChange={(event) => setMetaDescription(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center mt-2">
+                    <input
+                      type="checkbox"
+                      id="published"
+                      checked={published}
+                      onChange={(event) => setPublished(event.target.checked)}
+                      className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                    />
+                    <label htmlFor="published" className="ml-2 block text-sm text-gray-900">
+                      Publish immediately when approved
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Cover Image</label>
+                  <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
+                    <div className="space-y-1 text-center">
+                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600 justify-center">
+                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-black hover:text-gray-700 focus-within:outline-none p-1">
+                          <span>Upload a file</span>
+                          <input
+                            type="file"
+                            className="sr-only"
+                            onChange={(event) => setFile(event.target.files?.[0] || null)}
+                            accept="image/*"
+                          />
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400"
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : approvalRequired
+                        ? "Submit Blog"
+                        : "Publish Blog"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Live Blogs</h3>
+              <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
+                {blogs.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">No blog posts have been published yet.</div>
+                ) : (
+                  blogs.map((blog) => (
+                    <div key={blog.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div>
+                        <div className="font-medium text-gray-900">{blog.title}</div>
+                        <div className="text-sm text-gray-500 flex gap-1 mt-1 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs ${
+                              blog.published
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-200 text-gray-800"
+                            }`}
+                          >
+                            {blog.published ? "Published" : "Draft"}
+                          </span>
+                          {blog.tags.map((tag: string) => (
+                            <span key={tag} className="bg-gray-200 px-2 py-0.5 rounded text-xs">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteBlog(blog.id)}
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                      >
+                        {approvalRequired ? "Request Delete" : "Delete"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "events" && (
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Events Management</h1>
+                <p className="text-gray-500 mt-2">
+                  {approvalRequired
+                    ? "New event changes will be vetted by master control."
+                    : "Master control can publish and remove events directly."}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl shadow-inner border border-gray-200 p-6 mb-8">
+              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-gray-500" />
+                Upload New Event / Flier
+              </h2>
+              <form className="space-y-6" onSubmit={handleEventSubmit}>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Event Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Date</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Friday, March 6, 2026"
+                      required
+                      value={date}
+                      onChange={(event) => setDate(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Location</label>
+                    <input
+                      type="text"
+                      placeholder="Zoom Online Webinar"
+                      value={location}
+                      onChange={(event) => setLocation(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Registration Link</label>
+                    <input
+                      type="url"
+                      required
+                      value={link}
+                      onChange={(event) => setLink(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                    <input
+                      type="text"
+                      placeholder="Webinar, Democracy"
+                      value={tags}
+                      onChange={(event) => setTags(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Full Description</label>
+                    <textarea
+                      rows={4}
+                      required
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Event Flier</label>
+                  <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
+                    <div className="space-y-1 text-center">
+                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600 justify-center">
+                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-black hover:text-gray-700 focus-within:outline-none p-1">
+                          <span>Upload a file</span>
+                          <input
+                            type="file"
+                            className="sr-only"
+                            onChange={(event) => setFile(event.target.files?.[0] || null)}
+                            accept="image/*"
+                          />
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">{file ? file.name : "PNG, JPG up to 5MB"}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2 text-sm font-medium bg-black text-white rounded-lg disabled:bg-gray-400"
+                  >
+                    {isSubmitting
+                      ? "Saving..."
+                      : approvalRequired
+                        ? "Submit Event"
+                        : "Publish Event"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Live Events</h3>
+              <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
+                {events.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm">No events have been published yet.</div>
+                ) : (
+                  events.map((event) => (
+                    <div key={event.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div>
+                        <div className="font-medium text-gray-900">{event.title}</div>
+                        <div className="text-sm text-gray-500">{event.date}</div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                      >
+                        {approvalRequired ? "Request Delete" : "Delete"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "approvals" && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {canManageUsers ? "Approval Queue" : "My Submitted Changes"}
+              </h1>
+              <p className="text-gray-500 mt-2">
+                {canManageUsers
+                  ? "Master control vets mid-level changes before they go live."
+                  : "Track the requests you have sent for master review."}
+              </p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => refreshControlData().catch((error: Error) => showError(error.message))}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <RefreshCcw className="w-4 h-4" />
+                Refresh Queue
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {pendingChanges.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500">
+                  No change requests found.
+                </div>
+              ) : (
+                pendingChanges.map((change) => (
+                  <div key={change.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-semibold text-gray-900">{getChangeSummary(change)}</h3>
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(change.status)}`}>
+                            {change.status}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-500">
+                          {change.type} {change.resource} • submitted by {change.submittedBy.name} (
+                          {ROLE_LABELS[change.submittedBy.role] || change.submittedBy.role}) on {formatDate(change.createdAt)}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          {change.resource === "content"
+                            ? `Target page: ${String(change.payload.pageId ?? "homepage")}`
+                            : `Reference: ${String(change.resourceId ?? "new record")}`}
+                        </p>
+                        {change.note && (
+                          <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            Reviewer note: {change.note}
+                          </p>
+                        )}
+                        {change.reviewedBy && change.reviewedAt && (
+                          <p className="mt-2 text-sm text-gray-500">
+                            Reviewed by {change.reviewedBy.name} on {formatDate(change.reviewedAt)}
+                          </p>
+                        )}
+                      </div>
+
+                      {canManageUsers && change.status === "PENDING" && (
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => handlePendingReview(change.id, "approve")}
+                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handlePendingReview(change.id, "reject")}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Control Center</h1>
+              <p className="text-gray-500 mt-2">
+                Manage invitations, track who has access, and preserve master control of the site.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <UserPlus className="w-5 h-5 text-gray-700" />
+                <h2 className="text-xl font-semibold text-gray-900">Invite a New Controller</h2>
+              </div>
+
+              <form className="space-y-4" onSubmit={handleInviteSubmit}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
+                  <input
+                    type="email"
+                    required
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Access level</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(event) => setInviteRole(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+                  >
+                    {invitableRoles.map((role) => (
+                      <option key={role} value={role}>
+                        {ROLE_LABELS[role] || role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingInvite}
+                  className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:bg-gray-400"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  {isCreatingInvite ? "Creating Invite..." : "Create Invite"}
+                </button>
+              </form>
+
+              {latestInviteLink && (
+                <div className="mt-5 rounded-xl border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-medium text-gray-900 mb-2">Latest registration link</p>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={latestInviteLink}
+                      className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                    />
+                    <button
+                      onClick={copyInviteLink}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <ClipboardCheck className="w-5 h-5 text-gray-700" />
+                <h2 className="text-xl font-semibold text-gray-900">Invitations</h2>
+              </div>
+
+              <div className="space-y-3">
+                {invites.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                    No invitations found.
+                  </div>
+                ) : (
+                  invites.map((invite) => (
+                    <div key={invite.id} className="rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-gray-900">{invite.email}</p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {ROLE_LABELS[invite.role] || invite.role} • invited by {invite.invitedBy?.name || "Unknown"}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Created {formatDate(invite.createdAt)} • Expires {formatDate(invite.expiresAt)}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                            invite.used
+                              ? "bg-gray-100 text-gray-700 border border-gray-200"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          }`}
+                        >
+                          {invite.used ? "Used" : "Open"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {canManageUsers && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Users className="w-5 h-5 text-gray-700" />
+                  <h2 className="text-xl font-semibold text-gray-900">Access Management</h2>
+                </div>
+
+                <div className="space-y-3">
+                  {users.map((user) => (
+                    <div key={user.id} className="rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{user.name}</p>
+                          <p className="text-sm text-gray-500 break-all">{user.email}</p>
+                          <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                              {ROLE_LABELS[user.role] || user.role}
+                            </span>
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                user.active
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : "bg-gray-100 text-gray-700 border border-gray-200"
+                              }`}
+                            >
+                              {user.active ? "Active" : "Disabled"}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-gray-500">
+                            Created {formatDate(user.createdAt)}
+                            {user.invitedBy ? ` • Invited by ${user.invitedBy.name}` : ""}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          {user.role !== MASTER_ADMIN_ROLE && (
+                            <button
+                              onClick={() => updateManagedUser(user.id, { role: MASTER_ADMIN_ROLE })}
+                              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Make Master Control
+                            </button>
+                          )}
+                          {user.role !== MID_LEVEL_ADMIN_ROLE && (
+                            <button
+                              onClick={() => updateManagedUser(user.id, { role: MID_LEVEL_ADMIN_ROLE })}
+                              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Make Mid-Level
+                            </button>
+                          )}
+                          <button
+                            onClick={() => updateManagedUser(user.id, { active: !user.active })}
+                            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                              user.active
+                                ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            {user.active ? "Deactivate Access" : "Reactivate Access"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 bg-gray-100 h-screen flex flex-col relative overflow-hidden hidden md:flex">
+        <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-white shadow-sm z-10 shrink-0">
+          <div className="flex items-center gap-2">
+            <MonitorPlay className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">
+              Live Draft Preview <span className="text-gray-400 font-normal">({previewPath})</span>
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+            }}
+            className="text-xs bg-gray-50 text-gray-600 border px-3 py-1.5 rounded shadow-sm hover:bg-gray-100 transition-colors"
+          >
+            Hard Refresh Frame
+          </button>
+        </div>
+        <div className="flex-1 relative bg-white">
+          <iframe
+            key={previewPath}
+            ref={iframeRef}
+            src={previewPath}
+            className="absolute inset-0 w-full h-full border-none shadow-inner"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }

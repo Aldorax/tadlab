@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import cloudinary from "@/lib/cloudinary";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
     try {
+        const user = await getCurrentUser();
+
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const formData = await request.formData();
         const file = formData.get("file") as File;
 
@@ -13,7 +20,7 @@ export async function POST(request: Request) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        return new Promise((resolve, reject) => {
+        return await new Promise<Response>((resolve) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 { folder: "tadlab" },
                 (error, result) => {

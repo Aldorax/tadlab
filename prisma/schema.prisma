@@ -55,3 +55,85 @@ model BlogPost {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ─── Role-Based Access Control ──────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         AdminRole @default(ADMIN)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Who invited this user (null for the initial super admin)
+  invitedById  String?
+  invitedBy    AdminUser?  @relation("InvitedUsers", fields: [invitedById], references: [id])
+  invitedUsers AdminUser[] @relation("InvitedUsers")
+
+  sessions        AdminSession[]
+  sentInvites     AdminInvite[]
+  submittedChanges PendingChange[] @relation("SubmittedChanges")
+  reviewedChanges  PendingChange[] @relation("ReviewedChanges")
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminInvite {
+  id        String    @id @default(cuid())
+  email     String
+  role      AdminRole @default(ADMIN)
+  token     String    @unique
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  invitedById String
+  invitedBy   AdminUser @relation(fields: [invitedById], references: [id])
+}
+
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChangeType {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+model PendingChange {
+  id         String       @id @default(cuid())
+  type       ChangeType
+  resource   String       // "event", "project", "blog", "content"
+  resourceId String?      // ID of existing resource (for UPDATE/DELETE)
+  payload    Json         // Full data payload
+  status     ChangeStatus @default(PENDING)
+  note       String?      // Optional reviewer note
+  createdAt  DateTime     @default(now())
+
+  submittedById String
+  submittedBy   AdminUser @relation("SubmittedChanges", fields: [submittedById], references: [id])
+
+  reviewedById String?
+  reviewedBy   AdminUser? @relation("ReviewedChanges", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+}
