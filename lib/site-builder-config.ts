@@ -164,9 +164,9 @@ const aboutSections: BuilderSectionDefinition[] = [
     ],
     defaults: {
       sectionTitle: "Intro",
-      heading: "About the African Futures\nand Disruption Studies Lab",
+      heading: "About the Africa Futures\nand Disruption Lab",
       description:
-        "The Africa Disruptions Lab is a collaborative research platform dedicated to understanding how large-scale social, political, economic, and technological disruptions shape societies across Africa — and how evidence-based responses can be developed in real time.\n\nOur work bridges research, policy, and practice by grounding inquiry in real-world contexts and engaging those most affected by change as active contributors to the research process.",
+        "The Africa Futures and Disruption Lab is a collaborative research platform dedicated to understanding how large-scale social, political, economic, and technological disruptions shape societies across Africa — and how evidence-based responses can be developed in real time.\n\nOur work bridges research, policy, and practice by grounding inquiry in real-world contexts and engaging those most affected by change as active contributors to the research process.",
       image1: "/images/1.jpg",
       image2: "/images/2.jpg",
       image3: "/images/3.jpg",
