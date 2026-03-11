@@ -8,8 +8,8 @@ import { Search, Users, Copy, FileText, ChevronLeft, ChevronRight } from "lucide
 import Image from "next/image";
 import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
-import { getPageContent } from "@/app/actions/content";
 import { getProjects } from "@/app/actions/projects";
+import { usePageBuilder } from "@/hooks/use-page-builder";
 
 const defaultProjects = [
   {
@@ -17,55 +17,50 @@ const defaultProjects = [
     image: "/africa-map-political-disruption-concept.jpg",
     tags: ["Governance", "Political Change"],
     title: "Governance Under Pressure: Institutional Responses to Political Disruption",
-    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms focusing..."
+    description: "This research project examines how digital platforms and social media shape youth political engagement, protest movements, and new forms focusing...",
   },
   {
     id: "2",
     image: "/african-woman-scholar-with-books-library.jpg",
     tags: ["Migration", "Research"],
     title: "Ìrìnkèrindò: A Journal of African Migration",
-    description: "Ìrìnkèrindò is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement."
+    description: "Ìrìnkèrindò is a peer-reviewed journal dedicated to advancing scholarly understanding of African migration, mobility, and displacement.",
   },
   {
     id: "3",
     image: "/african-people-with-water-containers-migration.jpg",
     tags: ["Policy", "Migration"],
     title: "Mobility, Borders, and Belonging: Rethinking Migration Governance in Africa",
-    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna..."
+    description: "This publication explores contemporary migration governance frameworks across Africa, questioning existing policy assumptions and proposing alterna...",
   },
   {
     id: "4",
     image: "/african-people-with-water-containers-migration.jpg",
     tags: ["Technology", "Innovation"],
     title: "Digital Transformation and Social Change in African Cities",
-    description: "Examining how rapid technological adoption is reshaping urban governance, economic opportunities, and social structures across major African cities..."
-  }
+    description: "Examining how rapid technological adoption is reshaping urban governance, economic opportunities, and social structures across major African cities...",
+  },
 ];
+
+function readString(value: string | string[] | undefined, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
 
 export default function LandingPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [heroContent, setHeroContent] = useState({
-    title: "Understanding Disruption.\nShaping Africa's Future.",
-    sub: "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding social, political, economic, and technological disruptions across Africa — and translating evidence into practical, policy-relevant solutions.",
-    image: "/images/hero2.jpg"
-  });
-
+  const sections = usePageBuilder("homepage");
   const [projects, setProjects] = useState<any[]>(defaultProjects);
+
+  const hero = sections.hero || {};
+  const about = sections.about || {};
+  const howWeWork = sections.howWeWork || {};
+  const projectsShowcase = sections.projectsShowcase || {};
+  const whyItMatters = sections.whyItMatters || {};
 
   useEffect(() => {
     async function fetchData() {
-      const data = await getPageContent("homepage");
-      if (data) {
-        setHeroContent({
-          title: data.heroTitle || "Understanding Disruption.\nShaping Africa's Future.",
-          sub: data.heroSub || "The African Futures and Disruption Studies Lab is a collaborative research platform dedicated to understanding social, political, economic, and technological disruptions across Africa — and translating evidence into practical, policy-relevant solutions.",
-          image: data.heroImage || "/images/hero2.jpg"
-        });
-      }
-
       const projectsData = await getProjects();
       if (projectsData && projectsData.length > 0) {
-        // If they have less than 4 projects in DB, pad the rest with defaults so the slider isn't empty
         if (projectsData.length < 4) {
           const needed = 4 - projectsData.length;
           setProjects([...projectsData, ...defaultProjects.slice(0, needed)]);
@@ -74,21 +69,15 @@ export default function LandingPage() {
         }
       }
     }
-    fetchData();
+
+    void fetchData();
 
     const handleMessage = (event: MessageEvent) => {
       const data = event.data;
-      if (data?.type === 'PREVIEW_CONTENT' && data?.pageId === 'homepage') {
-        setHeroContent((prev) => ({
-          title: data.payload.heroTitle || prev.title,
-          sub: data.payload.heroSub || prev.sub,
-          image: data.payload.heroImage || prev.image,
-        }));
-      }
-      if (data?.type === 'PREVIEW_PROJECT') {
-        setProjects(prev => {
-          const newPreview = { id: 'preview-proj', ...data.payload };
-          const others = prev.filter(p => !p.id.toString().startsWith('preview-'));
+      if (data?.type === "PREVIEW_PROJECT") {
+        setProjects((prev) => {
+          const newPreview = { id: "preview-proj", ...data.payload };
+          const others = prev.filter((project) => !project.id.toString().startsWith("preview-"));
           const combined = [newPreview, ...others];
           if (combined.length < 4) {
             const needed = 4 - combined.length;
@@ -98,14 +87,15 @@ export default function LandingPage() {
         });
       }
     };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, []);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({
-        left: -520, // card width (500px) + gap (20px)
+        left: -520,
         behavior: "smooth",
       });
     }
@@ -114,7 +104,7 @@ export default function LandingPage() {
   const scrollRight = () => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollBy({
-        left: 520, // card width (500px) + gap (20px)
+        left: 520,
         behavior: "smooth",
       });
     }
@@ -122,70 +112,55 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen font-bricolage">
-      {/* Construction Banner */}
       <ConstructionBanner />
 
-      {/* Hero Section */}
       <section
         className="relative min-h-screen bg-cover bg-center"
         style={{
-          backgroundImage: `url('${heroContent.image}')`,
+          backgroundImage: `url('${readString(hero.image, "/images/hero2.jpg")}')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        {/* Overlay for better text contrast */}
         <div className="absolute inset-0 bg-linear-to-b from-black/30 via-transparent to-black/50" />
-
-        {/* Navigation */}
         <NavBar />
 
-        {/* Hero Content */}
         <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-32 flex items-center h-[90vh] font-bricolage">
           <div className="max-w-3xl md:max-w-5xl">
             <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1] whitespace-pre-line">
-              {heroContent.title}
+              {readString(hero.title)}
             </h2>
             <p className="text-base md:text-xl text-white/90 mb-8 font-semibold leading-relaxed max-w-4xl whitespace-pre-line">
-              {heroContent.sub}
+              {readString(hero.description)}
             </p>
-            <Link href="/research">
+            <Link href={readString(hero.ctaHref, "/research")}>
               <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-4 md:py-6 text-base font-medium transition-all hover:scale-105">
-                Explore Our Research
+                {readString(hero.ctaLabel, "Explore Our Research")}
               </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* About Us Section */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between">
             <div className="flex items-start gap-4 mb-16">
               <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-              <h2 className="text-4xl font-bold text-[#1a1a1a]">About Us</h2>
+              <h2 className="text-4xl font-bold text-[#1a1a1a]">{readString(about.sectionTitle, "About Us")}</h2>
             </div>
 
             <div className="mb-16">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] text-right mb-8">
-                Understanding Change,
-                <br />
-                Designing Solutions
+              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] text-right mb-8 whitespace-pre-line">
+                {readString(about.heading)}
               </h3>
-              <p className="text-[#767676] text-lg text-right max-w-3xl ml-auto leading-relaxed mb-8">
-                The African Futures and Disruption Studies Lab was created to
-                address a growing gap between research and real-world action.
-                Across Africa, rapid societal change is often studied after the
-                fact and in isolation. The lab brings together researchers,
-                practitioners, policymakers, and communities to study
-                disruptions as they unfold, identify shared patterns, and
-                co-create solutions grounded in real-world contexts.
+              <p className="text-[#767676] text-lg text-right max-w-3xl ml-auto leading-relaxed mb-8 whitespace-pre-line">
+                {readString(about.description)}
               </p>
               <div className="flex justify-end">
-                <Link href="/about-us">
+                <Link href={readString(about.ctaHref, "/about-us")}>
                   <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-3 md:py-6 transition-all hover:scale-105">
-                    Learn More
+                    {readString(about.ctaLabel, "Learn More")}
                   </Button>
                 </Link>
               </div>
@@ -194,8 +169,8 @@ export default function LandingPage() {
 
           <div className="overflow-hidden rounded-lg">
             <Image
-              src="/images/zebra.jpg"
-              alt="African landscape with acacia tree"
+              src={readString(about.image, "/images/zebra.jpg")}
+              alt={readString(about.sectionTitle, "About section")}
               width={1400}
               height={600}
               className="w-full h-[600px] object-cover"
@@ -204,118 +179,77 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How We Work Section */}
       <section className="bg-[#000000] py-24">
         <div className="container mx-auto px-8">
           <div className="flex items-start gap-4 mb-16">
             <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-            <h2 className="text-4xl font-bold text-[#d1d1d1]">How We Work</h2>
+            <h2 className="text-4xl font-bold text-[#d1d1d1]">{readString(howWeWork.sectionTitle, "How We Work")}</h2>
           </div>
 
           <div className="mb-20">
-            <h3 className="text-3xl md:text-5xl font-bold text-white text-right mb-8">
-              A Solutions-Driven
-              <br />
-              Research Approach
+            <h3 className="text-3xl md:text-5xl font-bold text-white text-right mb-8 whitespace-pre-line">
+              {readString(howWeWork.heading)}
             </h3>
-            <p className="text-[#767676] text-lg text-right max-w-2xl ml-auto leading-relaxed">
-              Our methodology is rooted in participatory, action-oriented
-              research. We work directly within real-world settings to ensure
-              that research findings are grounded, relevant, and actionable.
+            <p className="text-[#767676] text-lg text-right max-w-2xl ml-auto leading-relaxed whitespace-pre-line">
+              {readString(howWeWork.description)}
             </p>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
-            {/* Step 1 */}
             <div className="border-t border-[#333333] pt-6">
               <div className="text-[#767676] text-sm font-mono mb-6">01</div>
               <Search className="w-12 h-12 text-white mb-6" />
-              <h4 className="text-xl font-bold text-white mb-4">
-                Identify Disruptions and
-                <br />
-                Underlying Patterns
-              </h4>
-              <p className="text-[#767676] text-sm leading-relaxed">
-                We analyze social and political change across regions to detect
-                recurring mechanisms.
-              </p>
+              <h4 className="text-xl font-bold text-white mb-4 whitespace-pre-line">{readString(howWeWork.step1Title)}</h4>
+              <p className="text-[#767676] text-sm leading-relaxed whitespace-pre-line">{readString(howWeWork.step1Description)}</p>
             </div>
 
-            {/* Step 2 */}
             <div className="border-t border-[#333333] pt-6">
               <div className="text-[#767676] text-sm font-mono mb-6">02</div>
               <Users className="w-12 h-12 text-white mb-6" />
-              <h4 className="text-xl font-bold text-white mb-4">
-                Co-Create Research
-                <br />
-                with Stakeholders
-              </h4>
-              <p className="text-[#767676] text-sm leading-relaxed">
-                Participants actively shape research questions, methods, and
-                outcomes.
-              </p>
+              <h4 className="text-xl font-bold text-white mb-4 whitespace-pre-line">{readString(howWeWork.step2Title)}</h4>
+              <p className="text-[#767676] text-sm leading-relaxed whitespace-pre-line">{readString(howWeWork.step2Description)}</p>
             </div>
 
-            {/* Step 3 */}
             <div className="border-t border-[#333333] pt-6">
               <div className="text-[#767676] text-sm font-mono mb-6">03</div>
               <Copy className="w-12 h-12 text-white mb-6" />
-              <h4 className="text-xl font-bold text-white mb-4">
-                Design and Test Pilot
-                <br />
-                Actions
-              </h4>
-              <p className="text-[#767676] text-sm leading-relaxed">
-                Practical initiatives are developed and implemented in real
-                contexts.
-              </p>
+              <h4 className="text-xl font-bold text-white mb-4 whitespace-pre-line">{readString(howWeWork.step3Title)}</h4>
+              <p className="text-[#767676] text-sm leading-relaxed whitespace-pre-line">{readString(howWeWork.step3Description)}</p>
             </div>
 
-            {/* Step 4 */}
             <div className="border-t border-[#333333] pt-6">
               <div className="text-[#767676] text-sm font-mono mb-6">04</div>
               <FileText className="w-12 h-12 text-white mb-6" />
-              <h4 className="text-xl font-bold text-white mb-4">
-                Translate Evidence into
-                <br />
-                Policy and Practice
-              </h4>
-              <p className="text-[#767676] text-sm leading-relaxed">
-                Findings are presented in accessible formats to support informed
-                decision-making.
-              </p>
+              <h4 className="text-xl font-bold text-white mb-4 whitespace-pre-line">{readString(howWeWork.step4Title)}</h4>
+              <p className="text-[#767676] text-sm leading-relaxed whitespace-pre-line">{readString(howWeWork.step4Description)}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Projects Section */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
           <div className="flex items-start flex-col md:flex-row justify-between mb-16">
             <div className="flex items-center gap-4">
               <div className="w-3 h-3 rounded-full bg-black mt-2" />
-              <h2 className="text-3xl md:text-4xl font-bold text-[#1a1a1a]">Projects</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#1a1a1a]">{readString(projectsShowcase.sectionTitle, "Projects")}</h2>
             </div>
             <div className="flex flex-col gap-2 mt-8 md:mt-0">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4">
-                Featured Research and Initiatives
+              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
+                {readString(projectsShowcase.heading)}
               </h3>
-              <p className="text-[#767676] text-lg md:text-right max-w-2xl md:ml-auto leading-relaxed mb-4">
-                A selection of current projects and recent outputs that illustrate
-                the lab&apos;s focus and approach.
+              <p className="text-[#767676] text-lg md:text-right max-w-2xl md:ml-auto leading-relaxed mb-4 whitespace-pre-line">
+                {readString(projectsShowcase.description)}
               </p>
-              <Link href="/projects" className="md:ml-auto">
+              <Link href={readString(projectsShowcase.ctaHref, "/projects")} className="md:ml-auto">
                 <Button className="bg-[#000000] hover:bg-[#1a1a1a] text-white rounded-lg px-8 py-3 md:py-6 transition-all hover:scale-105">
-                  View All
+                  {readString(projectsShowcase.ctaLabel, "View All")}
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Projects Carousel with Overlay Navigation */}
           <div className="relative group">
-            {/* Left Arrow */}
             <button
               onClick={scrollLeft}
               className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full p-3 shadow-xl transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
@@ -324,7 +258,6 @@ export default function LandingPage() {
               <ChevronLeft className="w-6 h-6" />
             </button>
 
-            {/* Right Arrow */}
             <button
               onClick={scrollRight}
               className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full p-3 shadow-xl transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
@@ -333,15 +266,14 @@ export default function LandingPage() {
               <ChevronRight className="w-6 h-6" />
             </button>
 
-            {/* Projects Scroll Container */}
             <div
               ref={scrollContainerRef}
               className="flex gap-8 overflow-x-auto pb-4 scrollbar-hide"
               style={{
-                scrollBehavior: 'smooth',
-                msOverflowStyle: 'none',
-                scrollbarWidth: 'none',
-                WebkitOverflowScrolling: 'touch'
+                scrollBehavior: "smooth",
+                msOverflowStyle: "none",
+                scrollbarWidth: "none",
+                WebkitOverflowScrolling: "touch",
               }}
             >
               {projects.map((project) => (
@@ -362,12 +294,8 @@ export default function LandingPage() {
                         </span>
                       ))}
                     </div>
-                    <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">
-                      {project.title}
-                    </h4>
-                    <p className="text-[#767676] text-sm leading-relaxed line-clamp-3">
-                      {project.description}
-                    </p>
+                    <h4 className="text-2xl font-bold text-[#1a1a1a] mb-3">{project.title}</h4>
+                    <p className="text-[#767676] text-sm leading-relaxed line-clamp-3">{project.description}</p>
                   </div>
                 </div>
               ))}
@@ -376,33 +304,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Why This Work Matters Section */}
       <section className="bg-[#f5f5f5] py-24">
         <div className="container mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between gap-4 mb-16">
             <div className="flex gap-4 items-start">
               <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-              <h2 className="text-4xl font-bold text-[#1a1a1a]">
-                Why This Work Matters
-              </h2>
+              <h2 className="text-4xl font-bold text-[#1a1a1a]">{readString(whyItMatters.sectionTitle, "Why This Work Matters")}</h2>
             </div>
             <div className="mb-16">
-              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4">
-                Building Resilient Futures
+              <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-4 whitespace-pre-line">
+                {readString(whyItMatters.heading)}
               </h3>
-              <p className="text-[#767676] text-lg md:text-right max-w-3xl md:ml-auto leading-relaxed">
-                Societal disruptions rarely occur in isolation. By identifying
-                shared patterns and testing practical responses, the lab supports
-                evidence-based strategies that strengthen resilience, inclusion,
-                and informed policy responses across Africa.
+              <p className="text-[#767676] text-lg md:text-right max-w-3xl md:ml-auto leading-relaxed whitespace-pre-line">
+                {readString(whyItMatters.description)}
               </p>
             </div>
           </div>
 
           <div className="overflow-hidden rounded-lg">
             <Image
-              src="/images/homelast.jpg"
-              alt="African fishermen working together"
+              src={readString(whyItMatters.image, "/images/homelast.jpg")}
+              alt={readString(whyItMatters.sectionTitle, "Why it matters")}
               width={1400}
               height={600}
               className="w-full h-[600px] object-cover"
@@ -411,7 +333,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <Footer />
     </div>
   );

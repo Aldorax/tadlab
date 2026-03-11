@@ -4,7 +4,21 @@ import type React from "react"
 
 import { useState } from "react"
 
-export default function ContactSection() {
+type ContactSectionProps = {
+  content: {
+    heading: string
+    generalTitle: string
+    generalEmail: string
+    emailTitle: string
+    emailValue: string
+    phoneTitle: string
+    phoneValue: string
+    submitLabel: string
+    bottomImage: string
+  }
+}
+
+export default function ContactSection({ content }: ContactSectionProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -33,29 +47,33 @@ export default function ContactSection() {
           {/* Left Column - Heading and Contact Info */}
           <div>
             <h2 className="text-4xl md:text-5xl font-bold text-[#1a1a1a] mb-12 leading-tight">
-              Ready to Collaborate?
-              <br />
-              Let's connect and Build
+              {content.heading.split("\n").map((line, index) => (
+                <span key={line}>
+                  {index > 0 && <br />}
+                  {line}
+                </span>
+              ))}
             </h2>
 
             <div className="space-y-8">
               <div>
-                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">General Enquiries</h3>
-                <a href="mailto:info@africandisruptionslab.org" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
-                  info@africandisruptionslab.org
+                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">{content.generalTitle}</h3>
+                <a href={`mailto:${content.generalEmail}`} className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
+                  {content.generalEmail}
                 </a>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">Email</h3>
-                <a href="mailto:africandsl@gmail.com" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
-                  info@africandisruptionslab.org                </a>
+                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">{content.emailTitle}</h3>
+                <a href={`mailto:${content.emailValue}`} className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
+                  {content.emailValue}
+                </a>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">Phonce Number</h3>
-                <a href="tel:+971-5070-8100" className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
-                  +971-5070-8100
+                <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2">{content.phoneTitle}</h3>
+                <a href={`tel:${content.phoneValue}`} className="text-[#767676] hover:text-[#1a1a1a] transition-colors">
+                  {content.phoneValue}
                 </a>
               </div>
             </div>
@@ -128,7 +146,7 @@ export default function ContactSection() {
                 type="submit"
                 className="w-full bg-[#000000] text-white py-4 px-6 rounded-md hover:bg-[#1a1a1a] transition-colors font-medium mt-8"
               >
-                Submit
+                {content.submitLabel}
               </button>
             </form>
           </div>
@@ -137,8 +155,8 @@ export default function ContactSection() {
         {/* Bottom Image */}
         <div className="w-full">
           <img
-            src="/images/elephants.jpg"
-            alt="Elephants walking across African savanna"
+            src={content.bottomImage || "/images/elephants.jpg"}
+            alt={content.heading}
             className="w-full h-[400px] md:h-[500px] object-cover"
           />
         </div>

@@ -3,9 +3,13 @@ import Footer from "@/components/footer";
 import NavBar from "@/components/navbar";
 import EventsGrid from "@/components/events-grid";
 import { getEvents } from "@/app/actions/events";
+import { getPageBuilderContent } from "@/lib/site-builder";
 
 export default async function EventsPage() {
     const rawEvents = await getEvents();
+    const sections = await getPageBuilderContent("events");
+    const hero = sections.hero || {};
+    const intro = sections.intro || {};
 
     const defaultEvent = {
         id: "1",
@@ -48,7 +52,7 @@ export default async function EventsPage() {
             <section
                 className="relative h-[70vh] bg-cover bg-center"
                 style={{
-                    backgroundImage: "url('/images/projects.jpg')",
+                    backgroundImage: `url('${typeof hero.image === "string" && hero.image ? hero.image : "/images/projects.jpg"}')`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                 }}
@@ -63,7 +67,7 @@ export default async function EventsPage() {
                 <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-16 flex items-end h-full font-bricolage">
                     <div className="max-w-3xl md:max-w-5xl">
                         <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-[1.1]">
-                            EVENTS
+                            {typeof hero.title === "string" && hero.title ? hero.title : "EVENTS"}
                         </h2>
                     </div>
                 </div>
@@ -75,18 +79,19 @@ export default async function EventsPage() {
                     <div className="flex flex-col md:flex-row justify-between gap-8">
                         <div className="flex items-start gap-4">
                             <div className="w-3 h-3 rounded-full bg-[#4ade80] mt-2" />
-                            <h2 className="text-4xl font-bold text-[#1a1a1a]">Intro</h2>
+                            <h2 className="text-4xl font-bold text-[#1a1a1a]">
+                                {typeof intro.sectionTitle === "string" && intro.sectionTitle ? intro.sectionTitle : "Intro"}
+                            </h2>
                         </div>
 
                         <div className="flex-1 md:max-w-3xl">
                             <h3 className="text-3xl md:text-5xl font-bold text-[#1a1a1a] md:text-right mb-8">
-                                Upcoming and Past Events
+                                {typeof intro.heading === "string" && intro.heading ? intro.heading : "Upcoming and Past Events"}
                             </h3>
-                            <p className="text-[#767676] text-lg md:text-right leading-relaxed">
-                                Join us for conversations, webinars, and dialogues that engage urgent questions shaping politics and society today.
-                                <br />
-                                <br />
-                                Explore our events below to understand the future of democracy, governance, and disruption across continents.
+                            <p className="text-[#767676] text-lg md:text-right leading-relaxed whitespace-pre-line">
+                                {typeof intro.description === "string" && intro.description
+                                    ? intro.description
+                                    : "Join us for conversations, webinars, and dialogues that engage urgent questions shaping politics and society today.\n\nExplore our events below to understand the future of democracy, governance, and disruption across continents."}
                             </p>
                         </div>
                     </div>

@@ -20,7 +20,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { createEvent, deleteEvent, getEvents } from "@/app/actions/events";
-import { getPageContent, updatePageContent } from "@/app/actions/content";
 import { createProject, deleteProject, getProjects } from "@/app/actions/projects";
 import { createBlogPost, deleteBlogPost, getBlogPosts } from "@/app/actions/blog";
 import {
@@ -31,6 +30,14 @@ import {
   isMasterAdminRole,
   requiresApproval,
 } from "@/lib/admin-roles";
+import {
+  createDefaultPageSections,
+  getBuilderPage,
+  getBuilderPages,
+  type BuilderFieldDefinition,
+  type BuilderFieldValue,
+} from "@/lib/site-builder-config";
+import { getPublicPagePath } from "@/lib/site-paths";
 
 type DashboardUser = {
   id: string;
@@ -47,6 +54,7 @@ type InviteRecord = {
   used: boolean;
   createdAt: string;
   expiresAt: string;
+  registrationUrl: string | null;
   invitedBy?: { name: string; email: string };
 };
 
@@ -63,7 +71,7 @@ type ManagedUser = {
 type PendingChangeRecord = {
   id: string;
   type: "CREATE" | "UPDATE" | "DELETE";
-  resource: "event" | "project" | "blog" | "content";
+  resource: "event" | "project" | "blog" | "content" | "siteContent";
   resourceId?: string | null;
   payload: Record<string, unknown>;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -78,6 +86,8 @@ type PendingResult = {
   pending: true;
   message: string;
 };
+
+type PageBuilderSections = Record<string, Record<string, BuilderFieldValue>>;
 
 function isPendingResult(value: unknown): value is PendingResult {
   return Boolean(
@@ -94,6 +104,10 @@ function formatDate(value: string | Date | null | undefined) {
 }
 
 function getChangeSummary(change: PendingChangeRecord) {
+  if (change.resource === "siteContent") {
+    return `Page Builder: ${String(change.payload.pageId ?? change.resourceId ?? "homepage")}`;
+  }
+
   if (change.resource === "content") {
     return `Page: ${String(change.payload.pageId ?? "homepage")}`;
   }
@@ -139,6 +153,11 @@ export default function AdminDashboard() {
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
+  const [projectFullDescription, setProjectFullDescription] = useState("");
+  const [projectStatus, setProjectStatus] = useState("");
+  const [projectTeam, setProjectTeam] = useState("");
+  const [projectFeaturedLink, setProjectFeaturedLink] = useState("");
+  const [projectFeaturedLinkLabel, setProjectFeaturedLinkLabel] = useState("");
   const [link, setLink] = useState("");
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -155,11 +174,7 @@ export default function AdminDashboard() {
   const [inviteRole, setInviteRole] = useState<string>(MID_LEVEL_ADMIN_ROLE);
 
   const [pageId, setPageId] = useState("homepage");
-  const [contentData, setContentData] = useState({
-    heroTitle: "",
-    heroSub: "",
-    heroImage: "",
-  });
+  const [pageSections, setPageSections] = useState<PageBuilderSections>(() => createDefaultPageSections("homepage"));
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -167,13 +182,14 @@ export default function AdminDashboard() {
   const canManageUsers = currentUser ? isMasterAdminRole(currentUser.role) : false;
   const invitableRoles = currentUser ? getInvitableRoles(currentUser.role) : [MID_LEVEL_ADMIN_ROLE];
   const canAccessControlCenter = currentUser ? currentUser.role !== "EDITOR" : false;
+  const builderPage = getBuilderPage(pageId);
+  const builderPages = getBuilderPages();
 
   const getPreviewPath = () => {
     if (activeTab === "events") return "/events";
     if (activeTab === "projects") return "/projects";
     if (activeTab === "blogs") return "/blog";
-    if (activeTab === "content" && pageId === "about") return "/about-us";
-    if (activeTab === "content" && pageId === "research") return "/research";
+    if (activeTab === "content") return getPublicPagePath(pageId);
     return "/";
   };
 
@@ -194,6 +210,11 @@ export default function AdminDashboard() {
     setDate("");
     setLocation("");
     setDescription("");
+    setProjectFullDescription("");
+    setProjectStatus("");
+    setProjectTeam("");
+    setProjectFeaturedLink("");
+    setProjectFeaturedLinkLabel("");
     setLink("");
     setTags("");
     setFile(null);
@@ -206,22 +227,37 @@ export default function AdminDashboard() {
     setPublished(false);
   };
 
+  const updatePageSectionField = (
+    sectionKey: string,
+    fieldKey: string,
+    value: BuilderFieldValue,
+  ) => {
+    setPageSections((current) => ({
+      ...current,
+      [sectionKey]: {
+        ...current[sectionKey],
+        [fieldKey]: value,
+      },
+    }));
+  };
+
+  const uploadPageSectionImage = async (sectionKey: string, fieldKey: string, asset: File) => {
+    const imageUrl = await uploadImage(asset);
+    updatePageSectionField(sectionKey, fieldKey, imageUrl);
+    showSuccess("Image uploaded and attached to the page builder.");
+  };
+
   const loadEvents = async () => setEvents(await getEvents());
   const loadProjects = async () => setProjects(await getProjects());
   const loadBlogs = async () => setBlogs(await getBlogPosts());
 
   const loadContent = async () => {
-    const data = await getPageContent(pageId);
-    if (data) {
-      setContentData({
-        heroTitle: data.heroTitle || "",
-        heroSub: data.heroSub || "",
-        heroImage: data.heroImage || "",
-      });
-      return;
+    const res = await fetch(`/api/admin/site-content/${pageId}`);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to load page builder content.");
     }
-
-    setContentData({ heroTitle: "", heroSub: "", heroImage: "" });
+    setPageSections(data.sections || createDefaultPageSections(pageId));
   };
 
   const loadPendingChanges = async () => {
@@ -307,16 +343,16 @@ export default function AdminDashboard() {
     }
 
     if (activeTab === "events") {
-      void loadEvents();
+      void loadEvents().catch((error: Error) => showError(error.message));
     }
     if (activeTab === "projects") {
-      void loadProjects();
+      void loadProjects().catch((error: Error) => showError(error.message));
     }
     if (activeTab === "blogs") {
-      void loadBlogs();
+      void loadBlogs().catch((error: Error) => showError(error.message));
     }
     if (activeTab === "content") {
-      void loadContent();
+      void loadContent().catch((error: Error) => showError(error.message));
     }
     if (activeTab === "approvals" || activeTab === "settings") {
       void refreshControlData().catch((error: Error) => {
@@ -327,16 +363,17 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (activeTab === "content" && iframeRef.current?.contentWindow) {
+      // Keep the live preview in sync with the section-based page builder state.
       iframeRef.current.contentWindow.postMessage(
         {
-          type: "PREVIEW_CONTENT",
+          type: "PREVIEW_SITE_PAGE",
           pageId,
-          payload: contentData,
+          sections: pageSections,
         },
         "*",
       );
     }
-  }, [contentData, pageId, activeTab]);
+  }, [pageSections, pageId, activeTab]);
 
   useEffect(() => {
     if (activeTab === "projects" && iframeRef.current?.contentWindow) {
@@ -404,17 +441,27 @@ export default function AdminDashboard() {
     setIsSubmitting(true);
 
     try {
-      const result = await updatePageContent(pageId, contentData);
+      const res = await fetch(`/api/admin/site-content/${pageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sections: pageSections }),
+      });
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to save page builder content.");
+      }
 
       if (isPendingResult(result)) {
         showSuccess(result.message);
         await loadPendingChanges();
       } else {
-        showSuccess("Content published successfully.");
+        setPageSections(result.sections || pageSections);
+        showSuccess(result.message || "Content published successfully.");
       }
     } catch (error) {
       console.error(error);
-      showError("Failed to save content.");
+      showError(error instanceof Error ? error.message : "Failed to save content.");
     } finally {
       setIsSubmitting(false);
     }
@@ -504,8 +551,13 @@ export default function AdminDashboard() {
       const result = await createProject({
         title,
         description,
+        fullDescription: projectFullDescription,
         image: imageUrl,
         tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+        status: projectStatus,
+        team: projectTeam,
+        featuredLink: projectFeaturedLink,
+        featuredLinkLabel: projectFeaturedLinkLabel,
       });
 
       resetForm();
@@ -619,6 +671,13 @@ export default function AdminDashboard() {
     showSuccess("Invitation link copied.");
   };
 
+  const copySpecificInviteLink = async (inviteUrl: string | null) => {
+    if (!inviteUrl) return;
+
+    await navigator.clipboard.writeText(inviteUrl);
+    showSuccess("Invite URL copied.");
+  };
+
   const updateManagedUser = async (id: string, payload: { role?: string; active?: boolean }) => {
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
@@ -667,6 +726,96 @@ export default function AdminDashboard() {
       console.error(error);
       showError(error instanceof Error ? error.message : "Failed to review change.");
     }
+  };
+
+  const renderBuilderField = (sectionKey: string, field: BuilderFieldDefinition) => {
+    const value = pageSections[sectionKey]?.[field.key];
+
+    if (field.type === "textarea") {
+      return (
+        <textarea
+          rows={field.rows || 4}
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => updatePageSectionField(sectionKey, field.key, event.target.value)}
+          placeholder={field.placeholder}
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+        />
+      );
+    }
+
+    if (field.type === "list") {
+      return (
+        <textarea
+          rows={field.rows || 5}
+          value={Array.isArray(value) ? value.join("\n") : ""}
+          onChange={(event) =>
+            updatePageSectionField(
+              sectionKey,
+              field.key,
+              event.target.value
+                .split("\n")
+                .map((item) => item.trim())
+                .filter(Boolean),
+            )
+          }
+          placeholder="One item per line"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+        />
+      );
+    }
+
+    if (field.type === "image") {
+      return (
+        <div className="space-y-3">
+          <input
+            type="url"
+            value={typeof value === "string" ? value : ""}
+            onChange={(event) => updatePageSectionField(sectionKey, field.key, event.target.value)}
+            placeholder="Paste an image URL"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+          />
+          <div className="flex items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <Upload className="w-4 h-4" />
+              Upload image
+              <input
+                type="file"
+                className="sr-only"
+                accept="image/*"
+                onChange={async (event) => {
+                  const asset = event.target.files?.[0];
+                  if (!asset) return;
+                  try {
+                    await uploadPageSectionImage(sectionKey, field.key, asset);
+                  } catch (error) {
+                    console.error(error);
+                    showError(error instanceof Error ? error.message : "Failed to upload image.");
+                  } finally {
+                    event.target.value = "";
+                  }
+                }}
+              />
+            </label>
+            <span className="text-sm text-gray-500">Use either a direct URL or upload a file.</span>
+          </div>
+          {typeof value === "string" && value ? (
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+              <img src={value} alt={field.label} className="h-40 w-full object-cover" />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return (
+      <input
+        type={field.type === "url" ? "url" : "text"}
+        value={typeof value === "string" ? value : ""}
+        onChange={(event) => updatePageSectionField(sectionKey, field.key, event.target.value)}
+        placeholder={field.placeholder}
+        className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-black focus:ring-black"
+      />
+    );
   };
 
   if (authLoading) {
@@ -767,69 +916,66 @@ export default function AdminDashboard() {
           <div className="w-full">
             <div className="flex justify-between items-center mb-8">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Content Manager</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Website Builder</h1>
                 <p className="text-gray-500">
                   {approvalRequired
-                    ? "Your page edits will be queued for master approval."
-                    : "Master control publishes page changes directly."}
+                    ? "Your section edits will be queued for master approval."
+                    : "Master control publishes page builder changes directly."}
                 </p>
               </div>
               <select
                 value={pageId}
-                onChange={(event) => setPageId(event.target.value)}
+                onChange={(event) => {
+                  const nextPageId = event.target.value;
+                  setPageId(nextPageId);
+                  setPageSections(createDefaultPageSections(nextPageId));
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black bg-white"
               >
-                <option value="homepage">Homepage</option>
-                <option value="about">About Us</option>
-                <option value="research">Research</option>
+                {builderPages.map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.label}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="border-b border-gray-200 bg-gray-50 p-4">
-                <h3 className="font-semibold text-gray-700">Hero Section Content</h3>
-              </div>
-              <div className="p-6 space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Main Headline</label>
-                  <input
-                    type="text"
-                    value={contentData.heroTitle}
-                    onChange={(event) => setContentData({ ...contentData, heroTitle: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                  />
+            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              Edit every section on the selected page from here. For image fields, either paste a direct URL or upload an image file.
+            </div>
+
+            <div className="space-y-6">
+              {builderPage?.sections.map((section) => (
+                <div key={section.key} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="border-b border-gray-200 bg-gray-50 p-4">
+                    <h3 className="font-semibold text-gray-700">{section.label}</h3>
+                    {section.description ? (
+                      <p className="mt-1 text-sm text-gray-500">{section.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="p-6 space-y-6">
+                    {section.fields.map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{field.label}</label>
+                        {renderBuilderField(section.key, field)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subheadline / Intro text</label>
-                  <textarea
-                    rows={6}
-                    value={contentData.heroSub}
-                    onChange={(event) => setContentData({ ...contentData, heroSub: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Hero Image URL</label>
-                  <input
-                    type="url"
-                    value={contentData.heroImage}
-                    onChange={(event) => setContentData({ ...contentData, heroImage: event.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                  />
-                </div>
-                <div className="pt-4 border-t border-gray-100 flex justify-end">
-                  <button
-                    onClick={handleContentSubmit}
-                    disabled={isSubmitting}
-                    className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400"
-                  >
-                    {isSubmitting
-                      ? "Saving..."
-                      : approvalRequired
-                        ? "Submit for Approval"
-                        : "Publish Changes"}
-                  </button>
-                </div>
+              ))}
+
+              <div className="pt-4 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={handleContentSubmit}
+                  disabled={isSubmitting}
+                  className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                >
+                  {isSubmitting
+                    ? "Saving..."
+                    : approvalRequired
+                      ? "Submit Page for Approval"
+                      : "Publish Page Changes"}
+                </button>
               </div>
             </div>
           </div>
@@ -876,12 +1022,62 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-700">Description</label>
+                    <label className="text-sm font-medium text-gray-700">Short Description</label>
                     <textarea
                       rows={4}
                       required
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Full Project Overview</label>
+                    <textarea
+                      rows={8}
+                      value={projectFullDescription}
+                      onChange={(event) => setProjectFullDescription(event.target.value)}
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                      placeholder="Add the detailed project story, objectives, methods, outcomes, or any other content that should appear on the individual project page."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Project Status</label>
+                    <input
+                      type="text"
+                      value={projectStatus}
+                      onChange={(event) => setProjectStatus(event.target.value)}
+                      placeholder="Active / Ongoing"
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Project Team</label>
+                    <input
+                      type="text"
+                      value={projectTeam}
+                      onChange={(event) => setProjectTeam(event.target.value)}
+                      placeholder="TADLab Research Division"
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Featured Link</label>
+                    <input
+                      type="url"
+                      value={projectFeaturedLink}
+                      onChange={(event) => setProjectFeaturedLink(event.target.value)}
+                      placeholder="https://example.com/project-report"
+                      className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Featured Link Label</label>
+                    <input
+                      type="text"
+                      value={projectFeaturedLinkLabel}
+                      onChange={(event) => setProjectFeaturedLinkLabel(event.target.value)}
+                      placeholder="Download Full Report"
                       className="w-full mt-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-black"
                     />
                   </div>
@@ -932,6 +1128,11 @@ export default function AdminDashboard() {
                     <div key={project.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                       <div>
                         <div className="font-medium text-gray-900">{project.title}</div>
+                        {project.status || project.team ? (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {[project.status, project.team].filter(Boolean).join(" • ")}
+                          </div>
+                        ) : null}
                         <div className="text-sm text-gray-500 flex gap-1 mt-1 flex-wrap">
                           {project.tags.map((tag: string) => (
                             <span key={tag} className="bg-gray-200 px-2 py-0.5 rounded text-xs">
@@ -1384,6 +1585,9 @@ export default function AdminDashboard() {
                 <UserPlus className="w-5 h-5 text-gray-700" />
                 <h2 className="text-xl font-semibold text-gray-900">Invite a New Controller</h2>
               </div>
+              <p className="mb-4 text-sm text-gray-500">
+                No email will be sent. Create the invite and share the generated URL manually.
+              </p>
 
               <form className="space-y-4" onSubmit={handleInviteSubmit}>
                 <div>
@@ -1425,7 +1629,7 @@ export default function AdminDashboard() {
 
               {latestInviteLink && (
                 <div className="mt-5 rounded-xl border border-gray-200 bg-white p-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Latest registration link</p>
+                  <p className="text-sm font-medium text-gray-900 mb-2">Latest invite URL</p>
                   <div className="flex gap-2">
                     <input
                       readOnly
@@ -1467,6 +1671,24 @@ export default function AdminDashboard() {
                           <p className="mt-1 text-sm text-gray-500">
                             Created {formatDate(invite.createdAt)} • Expires {formatDate(invite.expiresAt)}
                           </p>
+                          {invite.registrationUrl && (
+                            <div className="mt-3 flex gap-2">
+                              <input
+                                readOnly
+                                value={invite.registrationUrl}
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                              />
+                              {!invite.used && (
+                                <button
+                                  onClick={() => copySpecificInviteLink(invite.registrationUrl)}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  Copy
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${

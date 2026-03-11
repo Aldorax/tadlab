@@ -2,16 +2,19 @@ import ConstructionBanner from "@/components/construction-banner";
 import Footer from "@/components/footer";
 import NavBar from "@/components/navbar";
 import { getBlogPosts } from "@/app/actions/blog";
+import { getPageBuilderContent } from "@/lib/site-builder";
 import Link from "next/link";
 import Image from "next/image";
 
 export const metadata = {
     title: "Blog | TADLab",
-    description: "Read the latest news, updates, and research from The African Futures and Disruption Studies Lab.",
+    description: "Read the latest news, updates, and research from The Africa Disruptions Lab.",
 };
 
 export default async function BlogPage() {
     const blogPosts = await getBlogPosts(true); // onlyPublished = true
+    const sections = await getPageBuilderContent("blog");
+    const hero = sections.hero || {};
 
     return (
         <div className="min-h-screen">
@@ -20,6 +23,12 @@ export default async function BlogPage() {
             {/* Hero Section */}
             <section
                 className="relative h-[60vh] bg-cover bg-center bg-[#1a1a1a]"
+                style={{
+                    backgroundImage:
+                        typeof hero.image === "string" && hero.image ? `url('${hero.image}')` : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                }}
             >
                 <div className="absolute inset-0 bg-linear-to-b from-black/60 via-transparent to-black/80" />
                 <NavBar />
@@ -27,7 +36,7 @@ export default async function BlogPage() {
                 <div className="relative z-10 px-8 lg:px-16 pt-32 lg:pt-40 pb-16 flex items-end h-full font-bricolage">
                     <div className="max-w-3xl md:max-w-5xl">
                         <h2 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-[1.1]">
-                            BLOG & INSIGHTS
+                            {typeof hero.title === "string" && hero.title ? hero.title : "BLOG & INSIGHTS"}
                         </h2>
                     </div>
                 </div>
@@ -38,7 +47,14 @@ export default async function BlogPage() {
                 <div className="container mx-auto px-8 max-w-7xl">
                     {blogPosts.length === 0 ? (
                         <div className="text-center py-20">
-                            <h3 className="text-2xl font-semibold text-gray-500">No blog posts found. Check back later!</h3>
+                            <h3 className="text-2xl font-semibold text-gray-500">
+                                {typeof hero.emptyTitle === "string" && hero.emptyTitle ? hero.emptyTitle : "No blog posts found."}
+                            </h3>
+                            <p className="mt-3 text-gray-400">
+                                {typeof hero.emptyDescription === "string" && hero.emptyDescription
+                                    ? hero.emptyDescription
+                                    : "Check back later for new updates and research insights."}
+                            </p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

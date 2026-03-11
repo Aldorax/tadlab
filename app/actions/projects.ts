@@ -7,8 +7,13 @@ import { requiresApproval } from "@/lib/admin-roles";
 export async function createProject(data: {
     title: string;
     description: string;
+    fullDescription?: string;
     image: string;
     tags: string[];
+    status?: string;
+    team?: string;
+    featuredLink?: string;
+    featuredLinkLabel?: string;
 }) {
     const user = await getCurrentUser();
     if (!user) throw new Error("Unauthorized");
@@ -16,8 +21,13 @@ export async function createProject(data: {
     const projectData = {
         title: data.title,
         description: data.description,
+        fullDescription: data.fullDescription?.trim() || null,
         image: data.image,
         tags: data.tags,
+        status: data.status?.trim() || null,
+        team: data.team?.trim() || null,
+        featuredLink: data.featuredLink?.trim() || null,
+        featuredLinkLabel: data.featuredLinkLabel?.trim() || null,
     };
 
     if (requiresApproval(user.role)) {
@@ -43,6 +53,13 @@ export async function createProject(data: {
 export async function getProjects() {
     return await prisma.project.findMany({
         orderBy: { createdAt: "desc" },
+    });
+}
+
+export async function getProject(id: string) {
+    if (!id || id === 'preview-proj') return null; // handle our preview object case
+    return await prisma.project.findUnique({
+        where: { id }
     });
 }
 

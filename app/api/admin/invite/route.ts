@@ -95,12 +95,14 @@ export async function POST(req: NextRequest) {
 }
 
 // GET: List all invites (for admin view)
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const user = await getCurrentUser();
         if (!user || getInvitableRoles(user.role).length === 0) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        const baseUrl = req.nextUrl.origin;
 
         const invites = await prisma.adminInvite.findMany({
             where: isMasterAdminRole(user.role) ? undefined : { invitedById: user.id },
@@ -110,7 +112,12 @@ export async function GET() {
             },
         });
 
-        return NextResponse.json({ invites });
+        return NextResponse.json({
+            invites: invites.map((invite) => ({
+                ...invite,
+                registrationUrl: `${baseUrl}/admin/register?token=${invite.token}`,
+            })),
+        });
     } catch (error: any) {
         console.error("List invites error:", error);
         return NextResponse.json({ error: "Failed to fetch invites." }, { status: 500 });

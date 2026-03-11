@@ -1,142 +1,162 @@
-export default function ResearchOverview() {
+import { Search, Zap, Lightbulb, Users } from "lucide-react"
+
+type ResearchOverviewProps = {
+  content: {
+    overviewTitle: string
+    overviewParagraphs: string[]
+    questionsTitle: string
+    questionsIntro: string
+    questionsList: string[]
+    contextTitle: string
+    contextParagraphs: string[]
+    methodologyTitle: string
+    designTitle: string
+    designParagraphs: string[]
+    methodsList: string[]
+    designClosing: string
+    participatoryTitle: string
+    participatoryParagraphs: string[]
+  }
+}
+
+export default function ResearchOverview({ content }: ResearchOverviewProps) {
   return (
-    <div className="container mx-auto px-6 py-12">
-      {/* Overview Section */}
-      <section className="mb-12">
-        <h1 className="text-4xl font-bold text-[#1a1a1a] mb-6">Overview</h1>
-        <div className="space-y-4 text-[#767676] leading-relaxed">
-          <p>
-            Digital platforms have become central to contemporary political engagement across Africa, particularly among
-            young people in urban contexts. From social media–driven protest mobilization to new forms of civic
-            participation and political expression, digital technologies are reshaping how political action is
-            organized, communicated, and sustained.
-          </p>
-          <p>
-            This research project examines the role of digital platforms in shaping youth political mobilization across
-            selected African cities. Rather than focusing on single-country case studies, the project adopts a
-            comparative approach to identify recurring patterns, mechanisms, and outcomes across different political and
-            social contexts.
-          </p>
-          <p>
-            The study aims to generate evidence that supports informed policy responses to digitally mediated political
-            participation, with particular attention to governance, civic space, and democratic accountability.
-          </p>
-        </div>
-      </section>
+    <div className="bg-gray-50/50 py-24 sm:py-32">
+      <div className="container mx-auto px-6 lg:px-8 max-w-7xl">
+        
+        {/* Overview & Context Split */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 mb-32">
+          {/* Overview Section */}
+          <div className="relative">
+            <div className="absolute -left-6 lg:-left-12 top-0 h-full w-px bg-gradient-to-b from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 hidden sm:block" />
+            <div className="flex items-center gap-x-4 mb-8">
+              <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-600 outline outline-4 outline-white shadow-sm">
+                <Search className="w-6 h-6" />
+              </div>
+              <h2 className="text-3xl font-bold font-bricolage text-gray-900">{content.overviewTitle}</h2>
+            </div>
+            <div className="space-y-6 text-gray-600 text-lg leading-relaxed font-medium">
+              {content.overviewParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
+          </div>
 
-      {/* Key Research Questions Section */}
-      <section className="mb-12">
-        <h2 className="text-3xl font-bold text-[#1a1a1a] mb-6">Key Research Questions</h2>
-        <div className="space-y-4">
-          <p className="text-[#767676] leading-relaxed">The project is guided by the following core questions:</p>
-          <ul className="space-y-3 text-[#767676] leading-relaxed">
-            <li className="flex gap-3">
-              <span className="text-[#1a1a1a] mt-1.5">•</span>
-              <span>
-                How do digital platforms shape youth political mobilization and participation in urban African contexts?
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-[#1a1a1a] mt-1.5">•</span>
-              <span>
-                What recurring mechanisms link online mobilization to offline political action, such as protests or
-                civic campaigns?
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-[#1a1a1a] mt-1.5">•</span>
-              <span>
-                How do political institutions and state actors respond to digitally coordinated forms of participation?
-              </span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-[#1a1a1a] mt-1.5">•</span>
-              <span>What risks and opportunities do digital platforms create for inclusive political engagement?</span>
-            </li>
-            <li className="flex gap-3">
-              <span className="text-[#1a1a1a] mt-1.5">•</span>
-              <span>How can policy frameworks adapt to evolving forms of digital civic participation?</span>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      {/* Research Context and Rationale Section */}
-      <section className="mb-12">
-        <h2 className="text-3xl font-bold text-[#1a1a1a] mb-6">Research Context and Rationale</h2>
-        <div className="space-y-4 text-[#767676] leading-relaxed">
-          <p>
-            Across Africa, urban youth populations are growing rapidly, while access to digital technologies and social
-            media platforms continues to expand. These developments intersect with long-standing political grievances,
-            economic precarity, and demands for accountability.
-          </p>
-          <p>
-            While digital activism is often portrayed as either transformative or superficial, existing research
-            frequently fails to account for the specific political, institutional, and social contexts in which digital
-            mobilization occurs. Moreover, policy responses to digitally mediated political participation are often
-            reactive and fragmented.
-          </p>
-          <p>
-            This project responds to these gaps by grounding analysis in real-world contexts and examining digital
-            mobilization as part of broader political ecosystems rather than as an isolated phenomenon.
-          </p>
-        </div>
-      </section>
-
-      {/* Methodology Section */}
-      <section className="mb-12">
-        <h2 className="text-3xl font-bold text-[#1a1a1a] mb-8">Methodology</h2>
-
-        {/* Research Design Subsection */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-semibold text-[#1a1a1a] mb-4">Research Design</h3>
-          <div className="space-y-4 text-[#767676] leading-relaxed">
-            <p>
-              The project employs a mixed-methods, participatory research design combining qualitative and comparative
-              analysis.
-            </p>
-            <p>Key methodological components include:</p>
-            <ul className="space-y-3">
-              <li className="flex gap-3">
-                <span className="text-[#1a1a1a] mt-1.5">•</span>
-                <span>Comparative case studies across selected African cities</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[#1a1a1a] mt-1.5">•</span>
-                <span>Qualitative interviews with youth activists, organizers, and civic actors</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[#1a1a1a] mt-1.5">•</span>
-                <span>Digital ethnography focusing on platform use and online mobilization practices</span>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[#1a1a1a] mt-1.5">•</span>
-                <span>Stakeholder workshops involving policymakers, civil society actors, and researchers</span>
-              </li>
-            </ul>
-            <p>
-              This design allows for both depth and comparability while ensuring that research remains grounded in lived
-              experience.
-            </p>
+          {/* Research Context Section */}
+          <div className="relative bg-white p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100/60 h-max">
+             <div className="flex items-center gap-x-4 mb-8">
+              <div className="p-3 bg-black rounded-2xl text-white outline outline-4 outline-white shadow-sm">
+                <Lightbulb className="w-6 h-6" />
+              </div>
+              <h2 className="text-3xl font-bold font-bricolage text-gray-900">{content.contextTitle}</h2>
+            </div>
+            <div className="space-y-6 text-gray-600 text-lg leading-relaxed">
+              {content.contextParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Participatory Approach Section */}
-      <section className="mb-12">
-        <h2 className="text-3xl font-bold text-[#1a1a1a] mb-6">Participatory Approach</h2>
-        <div className="space-y-4 text-[#767676] leading-relaxed">
-          <p>
-            In line with the lab's commitment to participatory research, youth participants and civic actors are
-            actively involved in shaping research questions, interpreting findings, and identifying policy-relevant
-            implications.
-          </p>
-          <p>
-            This approach ensures that knowledge production is collaborative and that research outcomes reflect the
-            perspectives of those most directly engaged in political mobilization.
-          </p>
+        {/* Key Research Questions Section */}
+        <div className="mb-32">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center justify-center p-4 bg-emerald-100 rounded-3xl text-emerald-600 mb-6 shadow-sm">
+               <Zap className="w-8 h-8" />
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-bold font-bricolage text-gray-900 mb-6 leading-tight">
+              {content.questionsTitle}
+            </h2>
+            <p className="text-xl text-gray-600 font-medium">
+              {content.questionsIntro}
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            {content.questionsList.map((question, index) => (
+              <div 
+                key={question} 
+                className="bg-white p-8 rounded-3xl shadow-md border border-gray-100/80 hover:shadow-xl transition-shadow duration-300 relative overflow-hidden group"
+              >
+                <div className="absolute top-0 left-0 w-2 bg-emerald-500 h-full transform origin-top transition-transform duration-500" />
+                <div className="pl-6">
+                   <div className="text-gray-300 font-bricolage font-bold text-5xl mb-4 group-hover:text-emerald-100 transition-colors duration-300">
+                     0{index + 1}
+                   </div>
+                   <p className="text-gray-900 text-xl font-medium leading-relaxed">
+                     {question}
+                   </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
+
+        {/* Methodology & Participatory Approach */}
+        <div className="rounded-[2.5rem] bg-black p-8 sm:p-16 lg:p-20 text-white relative overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[500px] h-[500px] bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 relative z-10">
+            {/* Design & Methods (Left) */}
+            <div className="lg:col-span-7 space-y-12 shrink-0">
+               <div>
+                 <div className="flex items-center gap-x-4 mb-6">
+                    <div className="h-px w-12 bg-white/30" />
+                    <h2 className="text-sm font-semibold tracking-widest text-white/70 uppercase">
+                      {content.methodologyTitle}
+                    </h2>
+                  </div>
+                  <h3 className="text-4xl sm:text-5xl font-bold font-bricolage mb-8">
+                    {content.designTitle}
+                  </h3>
+               </div>
+               
+               <div className="space-y-6 text-gray-400 text-lg leading-relaxed">
+                  {content.designParagraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+               </div>
+
+               <div className="bg-white/5 rounded-3xl p-8 border border-white/10 backdrop-blur-sm">
+                  <ul className="space-y-6">
+                    {content.methodsList.map((method) => (
+                      <li key={method} className="flex gap-4 items-start">
+                        <div className="mt-1 w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        </div>
+                        <span className="text-white text-lg font-medium">{method}</span>
+                      </li>
+                    ))}
+                  </ul>
+               </div>
+
+               {content.designClosing && (
+                 <p className="text-gray-400 text-lg italic border-l-2 border-white/20 pl-6">
+                    {content.designClosing}
+                 </p>
+               )}
+            </div>
+
+            {/* Participatory (Right) */}
+            <div className="lg:col-span-5 h-full">
+              <div className="bg-gradient-to-b from-emerald-900 to-black rounded-3xl p-8 sm:p-10 border border-emerald-500/20 shadow-2xl sticky top-8">
+                <div className="p-3 bg-emerald-500/20 rounded-2xl text-emerald-400 w-max mb-8">
+                  <Users className="w-8 h-8" />
+                </div>
+                <h3 className="text-3xl font-bold font-bricolage mb-8 text-white">
+                  {content.participatoryTitle}
+                </h3>
+                <div className="space-y-6 text-emerald-100/70 text-lg leading-relaxed">
+                  {content.participatoryParagraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }

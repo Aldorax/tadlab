@@ -3,12 +3,8 @@ import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { isMasterAdminRole } from "@/lib/admin-roles";
-
-function getPublicPagePath(pageId: string) {
-    if (pageId === "homepage") return "/";
-    if (pageId === "about") return "/about-us";
-    return `/${pageId}`;
-}
+import { getPublicPagePath } from "@/lib/site-paths";
+import { savePageBuilderContent } from "@/lib/site-builder";
 
 // Apply a pending change to the actual database
 async function applyChange(change: any) {
@@ -69,6 +65,14 @@ async function applyChange(change: any) {
                     update: contentData,
                     create: { pageId, ...contentData },
                 });
+                revalidatePath(getPublicPagePath(pageId));
+            }
+            break;
+
+        case "siteContent":
+            if (change.type === "UPDATE") {
+                const pageId = String(payload.pageId);
+                await savePageBuilderContent(pageId, payload.sections as Record<string, Record<string, string | string[]>>);
                 revalidatePath(getPublicPagePath(pageId));
             }
             break;
